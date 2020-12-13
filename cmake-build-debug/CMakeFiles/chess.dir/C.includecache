@@ -1,0 +1,24 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/edward/Documents/chess/src/bitboard.h
+stdint.h
+/home/edward/Documents/chess/src/stdint.h
+
+/home/edward/Documents/chess/src/main.c
+move_gen.h
+/home/edward/Documents/chess/src/move_gen.h
+stdlib.h
+/home/edward/Documents/chess/src/stdlib.h
+stdio.h
+-
+
+/home/edward/Documents/chess/src/move_gen.h
+bitboard.h
+/home/edward/Documents/chess/src/bitboard.h
+

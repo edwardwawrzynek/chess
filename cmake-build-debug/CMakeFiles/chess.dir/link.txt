@@ -1,0 +1,1 @@
+/usr/bin/clang -g -flto=thin   CMakeFiles/chess.dir/src/bitboard.c.o CMakeFiles/chess.dir/src/move_gen.c.o CMakeFiles/chess.dir/src/found_magics.c.o CMakeFiles/chess.dir/src/main.c.o  -o chess 
