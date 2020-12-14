@@ -137,6 +137,11 @@ void board_invariants(const board *board);
 void board_from_fen_str(board *board, const char *fen_string);
 
 /**
+ * express a board in FEN notation (minus halfmove + turn counters)
+ * res_str must have 87 bytes allocated */
+void board_to_fen_str(const board *board, char *res_str);
+
+/**
  * get the piece at the given square, or -1 if no piece is on the square */
 int board_piece_on_square(const board *board, board_pos square);
 

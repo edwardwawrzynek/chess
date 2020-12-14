@@ -30,7 +30,7 @@ typedef uint64_t move;
 board_pos move_source_square(move move);
 /**
  * get the destination square of a move (where a piece is being moved to) */
-board_pos move_dest_square(move move);
+board_pos move_destination_square(move move);
 
 /**
  * check if a move is a promotion */
@@ -69,6 +69,11 @@ board_pos move_capture_square(move move);
 void move_to_str(move move, char *res_str);
 
 /**
+ * construct a move from a string and a board
+ * board must be a legal board for the move to be applied on (but the move will not actually be made on it) */
+move move_from_str(char *move_str, const board *board);
+
+/**
  * move_gen contains the state of the move generation algorithm */
 typedef struct move_gen {
   // board having move generated for
@@ -99,7 +104,11 @@ void move_gen_init(move_gen *move_gen, board *board, int captures_only);
  * check if a square on the board is attacked by a certain player
  * return a bitboard with each square set that is threatening the square
  * if the square is not attacked, the bitboard is 0 */
-bitboard move_gen_is_square_attacked(const move_gen *move_gen, board_pos square, int attacking_player);
+bitboard board_is_square_attacked(const board *board, board_pos square, int attacking_player);
+
+/**
+ * check if player is in check (ie -- player's king is attacked by opponent) */
+bitboard board_player_in_check(const board *board, int player);
 
 /**
  * get the next move from the move generator

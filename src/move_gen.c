@@ -366,6 +366,21 @@ static move construct_move(uint16_t board_flags, board_pos src, board_pos dst, i
     (((uint64_t)capture_pos << MOVE_SHIFT_CAPTURE_SQUARE) & MOVE_FLAGS_CAPTURE_SQUARE);
 }
 
+/**
+ * given an en passant target square, get the pawn square to which it cooresponds */
+static board_pos en_passant_target_to_pawn_pos(board_pos ep_target) {
+  int x, y;
+  board_pos_to_xy(ep_target, &x, &y);
+  // en passant must be on rank 3 or 6
+  if(y == 2) {
+    return board_pos_from_xy(x, y + 1);
+  } else if(y == 5) {
+    return board_pos_from_xy(x, y - 1);
+  } else {
+    assert(0);
+  }
+}
+
 static char promote_codes[6] = {'k', 'p', 'n', 'r', 'b', 'q'};
 
 void move_to_str(move move, char *res_str) {
@@ -379,22 +394,68 @@ void move_to_str(move move, char *res_str) {
   }
 }
 
-bitboard move_gen_is_square_attacked(const move_gen *move_gen, board_pos square, int attacking_player) {
+move move_from_str(char *move_str, const board *board) {
+  // seperate src, dst, and promotion parts of string
+  char src_str[3];
+  memcpy(src_str, move_str, 2 * sizeof(char));
+  src_str[2] = '\0';
+  char dst_str[3];
+  memcpy(dst_str, move_str + 2, 2 * sizeof(char));
+  dst_str[2] = '\0';
+  // handle promotion char if present
+  int is_promote = 0;
+  char promote_char;
+  int promote_piece = -1;
+  if(move_str[4] != '\0') {
+    is_promote = 1;
+    promote_char = move_str[4];
+    for(int p = 0; p < 6; p++) {
+      if(promote_codes[p] == promote_char)
+        promote_piece = p;
+    }
+    assert(promote_piece != -1);
+  }
+  // parse src + dst
+  board_pos src = board_pos_from_str(src_str);
+  board_pos dst = board_pos_from_str(dst_str);
+  // check for capturing
+  int is_capture = 0;
+  board_pos capture_pos = BOARD_POS_INVALID;
+  int capture_piece = board_piece_on_square(board, dst);
+  if(capture_piece != -1) {
+    assert(board_player_on_square(board, dst) == !board_player_to_move(board));
+    is_capture = 1;
+    capture_pos = dst;
+  }
+  // check for en passant
+  if(dst == board_get_en_passant_target(board)) {
+    is_capture = 1;
+    capture_pos = en_passant_target_to_pawn_pos(board_get_en_passant_target(board));
+    capture_piece = board_piece_on_square(board, capture_pos);
+    assert(capture_piece == PAWN);
+  }
+
+  return construct_move(board->flags, src, dst, is_promote, promote_piece, is_capture, capture_piece, capture_pos);
+}
+
+bitboard board_is_square_attacked(const board *board, board_pos square, int attacking_player) {
   assert(attacking_player == WHITE || attacking_player == BLACK);
-  int defending_player = !!attacking_player;
+  int defending_player = !attacking_player;
   // hits on attacking pieces
   bitboard attack_hits = 0;
-  bitboard attackers_mask = move_gen->board->players[attacking_player];
+  bitboard attackers_mask = board->players[attacking_player];
+  bitboard occ_slide = board_occupancy_for_sliders_lookups(board);
+  bitboard occ_pawn = board_occupancy_for_pawns_lookups(board);
   // in order to find attacks, treat the square as a piece of each type and check the intersection of legal moves and the opponent
   for(int piece = KING; piece <= KNIGHT; piece++) {
     assert(piece == KING || piece == PAWN || piece == KNIGHT);
-    attack_hits |= move_gen_reg_moves_mask(move_gen->occupancy_for_sliders, move_gen->occupancy_for_pawns, piece,
-                                           defending_player, square) & (move_gen->board->pieces[piece]);
+    attack_hits |= move_gen_reg_moves_mask(occ_slide, occ_pawn, piece,
+                                           defending_player, square) & (board->pieces[piece]);
   }
   for(int piece = ROOK; piece <= BISHOP; piece++) {
     assert(piece == ROOK || piece == BISHOP);
-    attack_hits |= move_gen_reg_moves_mask(move_gen->occupancy_for_sliders, move_gen->occupancy_for_pawns, piece,
-                                           defending_player, square) & (move_gen->board->pieces[piece] | move_gen->board->pieces[QUEEN]);
+    attack_hits |= move_gen_reg_moves_mask(occ_slide, occ_pawn, piece,
+                                           defending_player, square) & (board->pieces[piece] | board->pieces[QUEEN]);
   }
   attack_hits &= attackers_mask;
   return attack_hits;
@@ -483,6 +544,14 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
   return res;
 }
 
+bitboard board_player_in_check(const board *board, int player) {
+  assert(player == WHITE || player == BLACK);
+  bitboard king_mask = board->pieces[KING] & board->players[player];
+  assert(bitboard_popcount(king_mask) == 1);
+  board_pos king_pos = bitboard_scan_lsb(king_mask);
+  return board_is_square_attacked(board, king_pos, !player);
+}
+
 static move move_gen_next(move_gen *generator, int undo_moves) {
   board_invariants(generator->board);
   int player = board_player_to_move(generator->board);
@@ -495,9 +564,7 @@ static move move_gen_next(move_gen *generator, int undo_moves) {
       move next_move = move_gen_next_from_cur_moves(generator);
       // make move
       move_gen_make_move(generator->board, next_move);
-      // check if king is in check
-      board_pos king_pos = bitboard_scan_lsb(generator->board->pieces[KING] & generator->board->players[player]);
-      if(move_gen_is_square_attacked(generator, king_pos, opponent)) {
+      if(board_player_in_check(generator->board, player)) {
         move_gen_unmake_move(generator->board, next_move);
         return move_gen_next(generator, undo_moves);
       }

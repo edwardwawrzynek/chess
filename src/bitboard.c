@@ -342,35 +342,6 @@ void board_from_fen_str(board *board, const char *fen_string) {
   board_invariants(board);
 }
 
-int board_player_to_move(const board *board) {
-  return board->flags & BOARD_FLAGS_TURN ? 1 : 0;
-}
-
-board_pos board_get_en_passant_target(const board *board) {
-  if(!(board->flags & BOARD_FLAGS_EP_PRESENT)) {
-    return BOARD_POS_INVALID;
-  } else {
-    return board->flags & BOARD_FLAGS_EP_SQUARE;
-  }
-}
-
-int board_can_castle(const board *board, int player, int side) {
-  assert(player == WHITE || player == BLACK);
-  assert(side == KING || side == QUEEN);
-
-  if(player == WHITE && side == KING) {
-    return board->flags & BOARD_FLAGS_W_CASTLE_KING ? 1 : 0;
-  } else if(player == WHITE && side == QUEEN) {
-    return board->flags & BOARD_FLAGS_W_CASTLE_QUEEN ? 1 : 0;
-  } else if(player == BLACK && side == KING) {
-    return board->flags & BOARD_FLAGS_B_CASTLE_KING ? 1 : 0;
-  } else if(player == BLACK && side == QUEEN) {
-    return board->flags & BOARD_FLAGS_B_CASTLE_QUEEN ? 1 : 0;
-  }
-
-  assert(0);
-}
-
 /**
  * convert castling rights to a string
  * castling_str must have 5 bytes allocated */
@@ -404,6 +375,89 @@ static void board_ep_to_str(const board *board, char* ep_str) {
     *ep_str++ = '-';
     *ep_str++ = '\0';
   }
+}
+
+void board_to_fen_str(const board *board, char *res_str) {
+  board_invariants(board);
+  for(int y = 7; y >= 0; y--) {
+    int empty_counter = 0;
+    for(int x = 0; x < 8; x++) {
+      int player = board_player_on_square(board, board_pos_from_xy(x, y));
+      int piece = board_piece_on_square(board, board_pos_from_xy(x, y));
+      if(player == -1) {
+        empty_counter++;
+      } else {
+        if(empty_counter > 0) {
+          assert(empty_counter <= 8);
+          *res_str++ = empty_counter + '0';
+          empty_counter = 0;
+        }
+        *res_str++ = board_piece_char_from_piece_player(piece, player);
+      }
+    }
+    if(empty_counter > 0) {
+      assert(empty_counter <= 8);
+      *res_str++ = empty_counter + '0';
+      empty_counter = 0;
+    }
+    if(y > 0) {
+      *res_str++ = '/';
+    }
+  }
+
+  *res_str++ = ' ';
+  if(board_player_to_move(board) == WHITE)
+    *res_str++ = 'w';
+  else
+    *res_str++ = 'b';
+
+  *res_str++ = ' ';
+  board_castling_to_str(board, res_str);
+  while(*res_str != '\0') {
+    res_str++;
+  }
+  *res_str++ = ' ';
+
+  board_ep_to_str(board, res_str);
+  while(*res_str != '\0') {
+    res_str++;
+  }
+  *res_str++ = ' ';
+  // TODO: real halfmove + turn counter
+  *res_str++ = '0';
+  *res_str++ = ' ';
+  *res_str++ = '1';
+
+  *res_str++ = '\0';
+}
+
+int board_player_to_move(const board *board) {
+  return board->flags & BOARD_FLAGS_TURN ? 1 : 0;
+}
+
+board_pos board_get_en_passant_target(const board *board) {
+  if(!(board->flags & BOARD_FLAGS_EP_PRESENT)) {
+    return BOARD_POS_INVALID;
+  } else {
+    return board->flags & BOARD_FLAGS_EP_SQUARE;
+  }
+}
+
+int board_can_castle(const board *board, int player, int side) {
+  assert(player == WHITE || player == BLACK);
+  assert(side == KING || side == QUEEN);
+
+  if(player == WHITE && side == KING) {
+    return board->flags & BOARD_FLAGS_W_CASTLE_KING ? 1 : 0;
+  } else if(player == WHITE && side == QUEEN) {
+    return board->flags & BOARD_FLAGS_W_CASTLE_QUEEN ? 1 : 0;
+  } else if(player == BLACK && side == KING) {
+    return board->flags & BOARD_FLAGS_B_CASTLE_KING ? 1 : 0;
+  } else if(player == BLACK && side == QUEEN) {
+    return board->flags & BOARD_FLAGS_B_CASTLE_QUEEN ? 1 : 0;
+  }
+
+  assert(0);
 }
 
 /**

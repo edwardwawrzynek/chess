@@ -1,1 +1,0 @@
-/usr/bin/clang -g   CMakeFiles/chess_find_magics.dir/src/bitboard.c.o CMakeFiles/chess_find_magics.dir/src/move_gen.c.o CMakeFiles/chess_find_magics.dir/src/found_magics.c.o CMakeFiles/chess_find_magics.dir/src/find_magics.c.o  -o chess_find_magics 
