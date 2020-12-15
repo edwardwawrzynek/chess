@@ -279,19 +279,12 @@ static bitboard board_occupancy_for_pawns_lookups(const board *board) {
 #define MOVE_GEN_MODE_NORMAL 0
 #define MOVE_GEN_MODE_CASTLES 2
 
-void move_gen_init(move_gen *move_gen, board *board, int captures_only) {
+void move_gen_init(move_gen *move_gen, board *board) {
   int player = board_player_to_move(board);
   move_gen->board = board;
   move_gen->occupancy_for_sliders = board_occupancy_for_sliders_lookups(board);
   move_gen->occupancy_for_pawns = board_occupancy_for_pawns_lookups(board);
-  if (captures_only) {
-    move_gen->final_moves_mask = board->players[!player];
-    if (board->flags & BOARD_FLAGS_EP_PRESENT) {
-      move_gen->final_moves_mask = bitboard_set_square(move_gen->final_moves_mask, board->flags & BOARD_FLAGS_EP_SQUARE);
-    }
-  } else {
-    move_gen->final_moves_mask = ~board->players[player];
-  }
+  move_gen->final_moves_mask = ~board->players[player];
   move_gen->cur_mode = MOVE_GEN_MODE_NORMAL;
   move_gen->cur_square = 0;
   move_gen->cur_moves = 0;
@@ -428,7 +421,7 @@ move move_from_str(char *move_str, const board *board) {
     capture_pos = dst;
   }
   // check for en passant
-  if(dst == board_get_en_passant_target(board)) {
+  if(dst == board_get_en_passant_target(board) && board_piece_on_square(board, src) == PAWN) {
     is_capture = 1;
     capture_pos = en_passant_target_to_pawn_pos(board_get_en_passant_target(board));
     capture_piece = board_piece_on_square(board, capture_pos);
@@ -475,7 +468,12 @@ void move_gen_make_move(board *board, move move) {
   // if move is capture, clear dst for opponent
   if(move_is_capture(move)) {
     board_pos cap_square = move_capture_square(move);
-    int cap_piece = board_piece_on_square(board, dst);
+    // en passant capture
+    board_pos ep_target = board_get_en_passant_target(board);
+    if(ep_target != BOARD_POS_INVALID && ep_target  == dst) {
+      cap_square = en_passant_target_to_pawn_pos(ep_target);
+    }
+    int cap_piece = board_piece_on_square(board, cap_square);
     assert(cap_piece != -1);
     assert(cap_square != src);
     assert(board_player_on_square(board, cap_square) != player);
@@ -487,7 +485,27 @@ void move_gen_make_move(board *board, move move) {
   board->players[player] = bitboard_set_square(board->players[player], dst);
   board->pieces[piece] = bitboard_clear_square(board->pieces[piece], src);
   board->players[player] = bitboard_clear_square(board->players[player], src);
-  // TODO: en passant capture + revoke castling rights if needed + castling + promotion
+  // clear en passant target
+  board->flags &= ~(BOARD_FLAGS_EP_PRESENT);
+  // set en passant target if move is double pawn push
+  if(piece == PAWN && ((src - dst) == 16 || (dst - src) == 16)) {
+    #ifndef NDEBUG
+      int x, y;
+      board_pos_to_xy(src, &x, &y);
+      assert((board_player_to_move(board) == WHITE && y == 1) || (board_player_to_move(board) == BLACK && y == 6));
+    #endif
+    // generate en passant target (one behind square)
+    board_pos ep_target;
+    if(dst > src) {
+      ep_target = src + 8;
+    } else {
+      ep_target = src - 8;
+    }
+    board->flags |= BOARD_FLAGS_EP_PRESENT;
+    board->flags &= ~BOARD_FLAGS_EP_SQUARE;
+    board->flags |= (ep_target & BOARD_FLAGS_EP_SQUARE);
+  }
+  // TODO: revoke castling rights if needed + castling + promotion
   // flip player to move
   board->flags ^= BOARD_FLAGS_TURN;
   board_invariants(board);
@@ -529,7 +547,7 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
 
   int player = board_player_to_move(generator->board);
   int opponent = !player;
-  // check if move is a capture;
+  // check if move is a capture
   int is_capture = 0;
   int capture_piece = 0;
   board_pos capture_pos = 0;
@@ -539,7 +557,17 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
     assert(capture_piece != -1);
     capture_pos = dst;
   }
-  // TODO: promotion + en passant handling
+  // check en passant
+  if(generator->cur_piece_type == PAWN) {
+    board_pos ep_target = board_get_en_passant_target(generator->board);
+    if(ep_target != BOARD_POS_INVALID && dst == ep_target) {
+      is_capture = 1;
+      capture_piece = PAWN;
+      capture_pos = en_passant_target_to_pawn_pos(ep_target);
+      assert(board_piece_on_square(generator->board, capture_pos) == PAWN);
+    }
+  }
+  // TODO: promotion
   move res = construct_move(generator->board->flags, generator->cur_square, dst, 0, 0, is_capture, capture_piece, capture_pos);
   return res;
 }
@@ -604,11 +632,6 @@ move move_gen_make_next_move(move_gen *generator) {
 }
 
 // move generation TODO:
-// *[x] occupancy bitboard for rooks + bishop should not include the en passant target
-// *[x] occupancy bitboard for pawns must include the en passant target
-// *[x] attack mask applied after move generation should include en passant target
-// *[ ] when checking if a king (or other piece) is attack by pawns, you can just treat the king as a pawn of the king's color, generate moves mask, and & with the opponent pawn mask
-// *[x] whenever a move is made, clear ep target (unless move is double pawn push, then set)
 // *[ ] whenever a rook or king moves from their original position, or a rook is captured on its original position, clear the appropriate castling rights
 // *[ ] castling legality rules -- see https://en.wikipedia.org/wiki/Castling
 

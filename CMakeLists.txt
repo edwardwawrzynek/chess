@@ -3,7 +3,7 @@ project(chess)
 
 set(CMAKE_C_STANDARD 11)
 
-set(CFLAGS -Wall -Wextra -pedantic -Wno-unused-parameter -O3)
+set(CFLAGS -Wall -Wextra -pedantic -Wno-unused-parameter)
 
 set(SOURCES src/bitboard.c src/move_gen.c src/found_magics.c)
 set(DRIVER src/main.c)

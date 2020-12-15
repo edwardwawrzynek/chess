@@ -8,7 +8,7 @@ int perft(int depth, int cur, board* board) {
     return 1;
 
   move_gen generate;
-  move_gen_init(&generate, board, 0);
+  move_gen_init(&generate, board);
 
   int count = 0;
   move move;
@@ -39,13 +39,17 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-/*int main(int argc, char **argv) {
+/* int main(int argc, char **argv) {
   move_gen_pregenerate();
   board game;
-  board_from_fen_str(&game, "rnbqkbnr/1pp1pppp/p7/3p4/Q7/2P5/PP1PPPPP/RNB1KBNR w KQkq - 0 1");
+  board_from_fen_str(&game, "rnbqkbnr/ppppp1pp/8/8/4Pp2/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
   board_print(&game);
   move_gen gen;
   move_gen_init(&gen, &game, 0);
-  bitboard attacks = move_gen_board_in_check(&gen, BLACK);
-  bitboard_print(attacks);
-}*/
+  move move;
+  while((move = move_gen_next_move(&gen)) != MOVE_END) {
+    char str[6];
+    move_to_str(move, str);
+    printf("%s is_cap: %i\n", str, move_is_capture(move));
+  }
+} */

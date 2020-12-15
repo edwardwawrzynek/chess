@@ -96,9 +96,8 @@ typedef struct move_gen {
 
 
 /**
- * initialize a move_gen structure for a given board
- * if captures_only, the generator will only generate moves that capture pieces */
-void move_gen_init(move_gen *move_gen, board *board, int captures_only);
+ * initialize a move_gen structure for a given board */
+void move_gen_init(move_gen *move_gen, board *board);
 
 /**
  * check if a square on the board is attacked by a certain player
