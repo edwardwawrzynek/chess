@@ -39,17 +39,11 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-/* int main(int argc, char **argv) {
+/*int main() {
   move_gen_pregenerate();
   board game;
-  board_from_fen_str(&game, "rnbqkbnr/ppppp1pp/8/8/4Pp2/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+  board_from_fen_str(&game, "8/2p5/3p4/1P4kr/1R6/8/4p1P1/3K4 b - - 0 1");
   board_print(&game);
-  move_gen gen;
-  move_gen_init(&gen, &game, 0);
-  move move;
-  while((move = move_gen_next_move(&gen)) != MOVE_END) {
-    char str[6];
-    move_to_str(move, str);
-    printf("%s is_cap: %i\n", str, move_is_capture(move));
-  }
-} */
+  bitboard attacks = board_player_in_check(&game, WHITE);
+  bitboard_print_pretty(attacks);
+}*/

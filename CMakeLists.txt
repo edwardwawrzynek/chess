@@ -7,15 +7,18 @@ set(CFLAGS -Wall -Wextra -pedantic -Wno-unused-parameter)
 
 set(SOURCES src/bitboard.c src/move_gen.c src/found_magics.c)
 set(DRIVER src/main.c)
+set(PERFT_TEST_DRIVER src/pertf_test.c)
 set(FIND_MAGICS src/find_magics.c)
 
 include_directories(src)
 
 add_executable(chess ${SOURCES} ${DRIVER})
 add_executable(chess_find_magics ${SOURCES} ${FIND_MAGICS})
+add_executable(chess_pertf_test ${SOURCES} ${PERFT_TEST_DRIVER})
 
 target_compile_options(chess PRIVATE ${CFLAGS})
 target_compile_options(chess_find_magics PRIVATE ${CFLAGS})
+target_compile_options(chess_pertf_test PRIVATE ${CFLAGS})
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT supported OUTPUT error)

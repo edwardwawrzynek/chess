@@ -200,15 +200,13 @@ static void move_gen_init_pawns() {
     for (board_pos pos = 0; pos < 64; pos++) {
       int x, y;
       board_pos_to_xy(pos, &x, &y);
-      if(y == 0 || y == 7) {
-        continue;
-      }
       for(unsigned int ahead = 0; ahead < 8; ahead++) {
         for(unsigned int double_ahead = 0; double_ahead < 2; double_ahead++) {
           bitboard moves = 0;
           int dir = player == WHITE ? 1 : -1;
+          int ahead_present = (y + dir >= 0 && y + dir < 8);
           // check move directly ahead
-          if(!(ahead & 2U)) {
+          if(!(ahead & 2U) && ahead_present) {
             moves = bitboard_set_square(moves, board_pos_from_xy(x, y + dir));
             // check move two ahead
             if(!double_ahead && ((player == WHITE && y == 1) || (player == BLACK && y == 6))) {
@@ -216,10 +214,10 @@ static void move_gen_init_pawns() {
             }
           }
           // check captures
-          if(x >= 1 && (ahead & 1U)) {
+          if(x >= 1 && (ahead & 1U) && ahead_present) {
             moves = bitboard_set_square(moves, board_pos_from_xy(x - 1, y + dir));
           }
-          if(x <= 6 && (ahead & 4U)) {
+          if(x <= 6 && (ahead & 4U) && ahead_present) {
             moves = bitboard_set_square(moves, board_pos_from_xy(x + 1, y + dir));
           }
           // set lookup table
@@ -288,7 +286,7 @@ void move_gen_init(move_gen *move_gen, board *board) {
   move_gen->cur_mode = MOVE_GEN_MODE_NORMAL;
   move_gen->cur_square = 0;
   move_gen->cur_moves = 0;
-  move_gen->cur_promotion = 0;
+  move_gen->cur_promotion = KNIGHT;
   move_gen->cur_piece_type = 0;
 }
 
@@ -352,9 +350,9 @@ static move construct_move(uint16_t board_flags, board_pos src, board_pos dst, i
     ((uint64_t)board_flags & MOVE_FLAGS_PREV_FLAGS) +
     (((uint64_t)src << MOVE_SHIFT_SRC) & MOVE_FLAGS_SRC) +
     (((uint64_t)dst << MOVE_SHIFT_DST) & MOVE_FLAGS_DST) +
-    ((uint64_t)!!is_promotion << MOVE_SHIFT_IS_PROMOTE) +
+    ((uint64_t) (is_promotion != 0) << MOVE_SHIFT_IS_PROMOTE) +
     (((uint64_t)promote_piece << MOVE_SHIFT_PROMOTE_PIECE) & MOVE_FLAGS_PROMOTE_PIECE) +
-    ((uint64_t)!!is_capture << MOVE_SHIFT_IS_CAPTURE) +
+    ((uint64_t) (is_capture != 0) << MOVE_SHIFT_IS_CAPTURE) +
     (((uint64_t)capture_piece << MOVE_SHIFT_CAPTURE_PIECE) & MOVE_FLAGS_CAPTURE_PIECE) +
     (((uint64_t)capture_pos << MOVE_SHIFT_CAPTURE_SQUARE) & MOVE_FLAGS_CAPTURE_SQUARE);
 }
@@ -460,6 +458,7 @@ void move_gen_make_move(board *board, move move) {
   board_pos src = move_source_square(move);
   board_pos dst = move_destination_square(move);
   int piece = board_piece_on_square(board, src);
+  int dst_piece = move_is_promotion(move) ? move_promotion_piece(move) : piece;
   int player = board_player_to_move(board);
   int opponent = !player;
 
@@ -481,7 +480,7 @@ void move_gen_make_move(board *board, move move) {
     board->pieces[cap_piece] = bitboard_clear_square(board->pieces[cap_piece], cap_square);
   }
   // move piece from src to dst and clear src
-  board->pieces[piece] = bitboard_set_square(board->pieces[piece], dst);
+  board->pieces[dst_piece] = bitboard_set_square(board->pieces[dst_piece], dst);
   board->players[player] = bitboard_set_square(board->players[player], dst);
   board->pieces[piece] = bitboard_clear_square(board->pieces[piece], src);
   board->players[player] = bitboard_clear_square(board->players[player], src);
@@ -518,16 +517,16 @@ void move_gen_unmake_move(board *board, move move) {
   // extract info from moves
   board_pos src = move_source_square(move);
   board_pos dst = move_destination_square(move);
-  int piece_maybe_promoted = board_piece_on_square(board, dst);
-  int piece = move_is_promotion(move) ? PAWN : piece_maybe_promoted;
-  assert(piece != -1);
+  int piece_dst = board_piece_on_square(board, dst);
+  int piece_src = move_is_promotion(move) ? PAWN : piece_dst;
+  assert(piece_dst != -1);
   // player is the player that made the move
   int player = board_player_to_move(board);
   int opponent = !player;
   // move dst to src
-  board->pieces[piece] = bitboard_clear_square(board->pieces[piece], dst);
+  board->pieces[piece_dst] = bitboard_clear_square(board->pieces[piece_dst], dst);
   board->players[player] = bitboard_clear_square(board->players[player], dst);
-  board->pieces[piece] = bitboard_set_square(board->pieces[piece], src);
+  board->pieces[piece_src] = bitboard_set_square(board->pieces[piece_src], src);
   board->players[player] = bitboard_set_square(board->players[player], src);
   // restore captures
   if(move_is_capture(move)) {
@@ -540,10 +539,27 @@ void move_gen_unmake_move(board *board, move move) {
   board_invariants(board);
 }
 
+/**
+ * advance the move generator to the next promotion type */
+static void move_gen_next_promote(move_gen *generator) {
+  generator->cur_promotion++;
+  if (generator->cur_promotion > QUEEN) {
+    generator->cur_promotion = KNIGHT;
+  }
+}
+
 static move move_gen_next_from_cur_moves(move_gen *generator) {
   assert(generator->cur_moves);
   board_pos dst = bitboard_scan_lsb(generator->cur_moves);
-  generator->cur_moves = bitboard_clear_square(generator->cur_moves, dst);
+  // check for promotion
+  int is_promote = 0;
+  if(generator->cur_piece_type == PAWN && ((dst >> 3) == 0 || (dst >> 3) == 7)) {
+    is_promote = 1;
+  }
+  // if promotion, only clear board if all promotions have been generated
+  if(!is_promote || generator->cur_promotion == QUEEN) {
+    generator->cur_moves = bitboard_clear_square(generator->cur_moves, dst);
+  }
 
   int player = board_player_to_move(generator->board);
   int opponent = !player;
@@ -567,8 +583,12 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
       assert(board_piece_on_square(generator->board, capture_pos) == PAWN);
     }
   }
-  // TODO: promotion
-  move res = construct_move(generator->board->flags, generator->cur_square, dst, 0, 0, is_capture, capture_piece, capture_pos);
+
+  move res = construct_move(generator->board->flags, generator->cur_square, dst, is_promote, generator->cur_promotion, is_capture, capture_piece, capture_pos);
+  // move to next promotion type
+  if(is_promote) {
+    move_gen_next_promote(generator);
+  }
   return res;
 }
 

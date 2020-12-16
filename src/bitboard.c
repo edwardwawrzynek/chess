@@ -507,7 +507,13 @@ void board_print(const board *board) {
       if(piece != -1) {
         piece_char = board_piece_char_from_piece_player(piece, player);
       }
+      if(player == BLACK) {
+        printf("\x1b[31m");
+      }
       printf(" %c", piece_char);
+      if(player == BLACK) {
+        printf("\x1b[m");
+      }
     }
     printf(" | %c\n", '1' + y);
   }
