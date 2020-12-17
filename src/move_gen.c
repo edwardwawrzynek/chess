@@ -233,8 +233,10 @@ static void move_gen_init_pawns() {
 static bitboard pawn_move_lookup(bitboard occupancy, board_pos square, int player) {
   int dir = player == WHITE ? 1 : -1;
   // get the three squares forward of the pawn, and the square two squares ahead
-  uint8_t forward_rank = (occupancy >> (square - 1 + dir * 8)) & 0x07;
-  uint8_t double_forward_rank = (occupancy >> (square + dir * 16)) & 0x01;
+  int forward_shift = square - 1 + dir * 8;
+  uint8_t forward_rank = forward_shift >= 0 ? (occupancy >> forward_shift) & 0x07 : (occupancy << -forward_shift) & 0x07;
+  int double_forward_shift = square + dir * 16;
+  uint8_t double_forward_rank = double_forward_shift > 0 ? (occupancy >> double_forward_shift) & 0x01 : (occupancy << -double_forward_shift) & 0x01;
 
   return move_gen_pawns[player][double_forward_rank][forward_rank][square];
 }
@@ -275,7 +277,9 @@ static bitboard board_occupancy_for_pawns_lookups(const board *board) {
 }
 
 #define MOVE_GEN_MODE_NORMAL 0
-#define MOVE_GEN_MODE_CASTLES 2
+#define MOVE_GEN_MODE_CASTLE_KING 1
+#define MOVE_GEN_MODE_CASTLE_QUEEN 2
+#define MOVE_GEN_MODE_END 3
 
 void move_gen_init(move_gen *move_gen, board *board) {
   int player = board_player_to_move(board);
@@ -305,6 +309,8 @@ void move_gen_init(move_gen *move_gen, board *board) {
 #define MOVE_SHIFT_CAPTURE_PIECE  33
 #define MOVE_FLAGS_CAPTURE_SQUARE 0x3f000000000ULL
 #define MOVE_SHIFT_CAPTURE_SQUARE 36
+#define MOVE_FLAGS_IS_CASTLE      0x40000000000ULL
+#define MOVE_SHIFTS_IS_CASTLE     42
 
 board_pos move_source_square(move move) {
   return (move & MOVE_FLAGS_SRC) >> MOVE_SHIFT_SRC;
@@ -343,9 +349,13 @@ board_pos move_capture_square(move move) {
     return  (move & MOVE_FLAGS_CAPTURE_SQUARE) >> MOVE_SHIFT_CAPTURE_SQUARE;
 }
 
+int move_is_castle(move move) {
+  return (move & MOVE_FLAGS_IS_CASTLE) >> MOVE_SHIFTS_IS_CASTLE;
+}
+
 /**
  * create a move from the given components */
-static move construct_move(uint16_t board_flags, board_pos src, board_pos dst, int is_promotion, int promote_piece, int is_capture, int capture_piece, board_pos capture_pos) {
+static move construct_move(uint16_t board_flags, board_pos src, board_pos dst, int is_promotion, int promote_piece, int is_capture, int capture_piece, board_pos capture_pos, int is_castle) {
   return
     ((uint64_t)board_flags & MOVE_FLAGS_PREV_FLAGS) +
     (((uint64_t)src << MOVE_SHIFT_SRC) & MOVE_FLAGS_SRC) +
@@ -354,7 +364,8 @@ static move construct_move(uint16_t board_flags, board_pos src, board_pos dst, i
     (((uint64_t)promote_piece << MOVE_SHIFT_PROMOTE_PIECE) & MOVE_FLAGS_PROMOTE_PIECE) +
     ((uint64_t) (is_capture != 0) << MOVE_SHIFT_IS_CAPTURE) +
     (((uint64_t)capture_piece << MOVE_SHIFT_CAPTURE_PIECE) & MOVE_FLAGS_CAPTURE_PIECE) +
-    (((uint64_t)capture_pos << MOVE_SHIFT_CAPTURE_SQUARE) & MOVE_FLAGS_CAPTURE_SQUARE);
+    (((uint64_t)capture_pos << MOVE_SHIFT_CAPTURE_SQUARE) & MOVE_FLAGS_CAPTURE_SQUARE) +
+    (((uint64_t) (is_castle != 0) << MOVE_SHIFTS_IS_CASTLE) & MOVE_FLAGS_IS_CASTLE);
 }
 
 /**
@@ -425,8 +436,13 @@ move move_from_str(char *move_str, const board *board) {
     capture_piece = board_piece_on_square(board, capture_pos);
     assert(capture_piece == PAWN);
   }
+  int is_castle = 0;
+  // check for castling
+  if((src == board_pos_from_xy(4, 0) && (dst == board_pos_from_xy(2, 0) || dst == board_pos_from_xy(6, 0))) || (src == board_pos_from_xy(4, 7) && (dst == board_pos_from_xy(2, 7) || dst == board_pos_from_xy(6, 7)))) {
+    is_castle = 1;
+  }
 
-  return construct_move(board->flags, src, dst, is_promote, promote_piece, is_capture, capture_piece, capture_pos);
+  return construct_move(board->flags, src, dst, is_promote, promote_piece, is_capture, capture_piece, capture_pos, is_castle);
 }
 
 bitboard board_is_square_attacked(const board *board, board_pos square, int attacking_player) {
@@ -452,6 +468,45 @@ bitboard board_is_square_attacked(const board *board, board_pos square, int atta
   return attack_hits;
 }
 
+/**
+ * clear the castling rights for player on piece side for board */
+static void board_clear_castling(board *board, int player, int side) {
+  assert(side == QUEEN || side == KING);
+  int flag = player == WHITE ?
+             (side == QUEEN ? BOARD_FLAGS_W_CASTLE_QUEEN : BOARD_FLAGS_W_CASTLE_KING) :
+             (side == QUEEN ? BOARD_FLAGS_B_CASTLE_QUEEN : BOARD_FLAGS_B_CASTLE_KING);
+  board->flags &= ~(flag);
+}
+
+static void move_gen_make_castle(board *board, move move) {
+  board_pos dst = move_destination_square(move);
+  board_pos src = move_source_square(move);
+  int player = board_player_to_move(board);
+  int side = board_pos_to_x(dst) == 2 ? QUEEN : KING;
+  assert(board_pos_to_x(dst) == 2 || board_pos_to_x(dst) == 6);
+  assert(board_piece_on_square(board, src) == KING);
+  assert(!move_is_capture(move));
+  assert(!move_is_promotion(move));
+
+  int y = player == WHITE ? 0 : 7;
+  assert(board_pos_to_y(dst) == y);
+  // move king
+  board->players[player] = bitboard_clear_square(board->players[player], src);
+  board->pieces[KING] = bitboard_clear_square(board->pieces[KING], src);
+  board->players[player] = bitboard_set_square(board->players[player], dst);
+  board->pieces[KING] = bitboard_set_square(board->pieces[KING], dst);
+  // move rook
+  board_pos rook_src = side == QUEEN ? board_pos_from_xy(0, y) : board_pos_from_xy(7, y);
+  board_pos rook_dst = side == QUEEN ? board_pos_from_xy(3, y) : board_pos_from_xy(5, y);
+  board->players[player] = bitboard_clear_square(board->players[player], rook_src);
+  board->pieces[ROOK] = bitboard_clear_square(board->pieces[ROOK], rook_src);
+  board->players[player] = bitboard_set_square(board->players[player], rook_dst);
+  board->pieces[ROOK] = bitboard_set_square(board->pieces[ROOK], rook_dst);
+
+  board_clear_castling(board, player, QUEEN);
+  board_clear_castling(board, player, KING);
+}
+
 void move_gen_make_move(board *board, move move) {
   board_invariants(board);
   assert(board->flags == (move & MOVE_FLAGS_PREV_FLAGS));
@@ -462,28 +517,62 @@ void move_gen_make_move(board *board, move move) {
   int player = board_player_to_move(board);
   int opponent = !player;
 
-  assert(piece != -1);
-  assert(!bitboard_check_square(board->players[opponent], dst) || move_is_capture(move));
-  // if move is capture, clear dst for opponent
-  if(move_is_capture(move)) {
-    board_pos cap_square = move_capture_square(move);
-    // en passant capture
-    board_pos ep_target = board_get_en_passant_target(board);
-    if(ep_target != BOARD_POS_INVALID && ep_target  == dst) {
-      cap_square = en_passant_target_to_pawn_pos(ep_target);
+  if(move_is_castle(move)) {
+    move_gen_make_castle(board, move);
+  } else {
+    assert(piece != -1);
+    assert(!bitboard_check_square(board->players[opponent], dst) || move_is_capture(move));
+    // revoke both sides castling rights if king is moved
+    if (piece == KING) {
+      board_clear_castling(board, player, KING);
+      board_clear_castling(board, player, QUEEN);
     }
-    int cap_piece = board_piece_on_square(board, cap_square);
-    assert(cap_piece != -1);
-    assert(cap_square != src);
-    assert(board_player_on_square(board, cap_square) != player);
-    board->players[opponent] = bitboard_clear_square(board->players[opponent], cap_square);
-    board->pieces[cap_piece] = bitboard_clear_square(board->pieces[cap_piece], cap_square);
+    // if rooks are moved, revoke castling rights
+    if (piece == ROOK) {
+      if (player == WHITE && src == board_pos_from_xy(0, 0)) {
+        board_clear_castling(board, WHITE, QUEEN);
+      } else if (player == WHITE && src == board_pos_from_xy(7, 0)) {
+        board_clear_castling(board, WHITE, KING);
+      } else if (player == BLACK && src == board_pos_from_xy(0, 7)) {
+        board_clear_castling(board, BLACK, QUEEN);
+      } else if (player == BLACK && src == board_pos_from_xy(7, 7)) {
+        board_clear_castling(board, BLACK, KING);
+      }
+    }
+    // if move is capture, clear dst for opponent
+    if (move_is_capture(move)) {
+      board_pos cap_square = move_capture_square(move);
+      // en passant capture
+      board_pos ep_target = board_get_en_passant_target(board);
+      if (ep_target != BOARD_POS_INVALID && ep_target == dst) {
+        cap_square = en_passant_target_to_pawn_pos(ep_target);
+      }
+      int cap_piece = board_piece_on_square(board, cap_square);
+      assert(cap_piece != -1);
+      assert(cap_square != src);
+      assert(board_player_on_square(board, cap_square) != player);
+      board->players[opponent] = bitboard_clear_square(board->players[opponent], cap_square);
+      board->pieces[cap_piece] = bitboard_clear_square(board->pieces[cap_piece], cap_square);
+
+      // if rooks are captured on initial squares, revoke castling rights
+      if (cap_piece == ROOK) {
+        if (opponent == WHITE && cap_square == board_pos_from_xy(0, 0)) {
+          board_clear_castling(board, WHITE, QUEEN);
+        } else if (opponent == WHITE && cap_square == board_pos_from_xy(7, 0)) {
+          board_clear_castling(board, WHITE, KING);
+        } else if (opponent == BLACK && cap_square == board_pos_from_xy(0, 7)) {
+          board_clear_castling(board, BLACK, QUEEN);
+        } else if (opponent == BLACK && cap_square == board_pos_from_xy(7, 7)) {
+          board_clear_castling(board, BLACK, KING);
+        }
+      }
+    }
+    // move piece from src to dst and clear src
+    board->pieces[dst_piece] = bitboard_set_square(board->pieces[dst_piece], dst);
+    board->players[player] = bitboard_set_square(board->players[player], dst);
+    board->pieces[piece] = bitboard_clear_square(board->pieces[piece], src);
+    board->players[player] = bitboard_clear_square(board->players[player], src);
   }
-  // move piece from src to dst and clear src
-  board->pieces[dst_piece] = bitboard_set_square(board->pieces[dst_piece], dst);
-  board->players[player] = bitboard_set_square(board->players[player], dst);
-  board->pieces[piece] = bitboard_clear_square(board->pieces[piece], src);
-  board->players[player] = bitboard_clear_square(board->players[player], src);
   // clear en passant target
   board->flags &= ~(BOARD_FLAGS_EP_PRESENT);
   // set en passant target if move is double pawn push
@@ -504,7 +593,7 @@ void move_gen_make_move(board *board, move move) {
     board->flags &= ~BOARD_FLAGS_EP_SQUARE;
     board->flags |= (ep_target & BOARD_FLAGS_EP_SQUARE);
   }
-  // TODO: revoke castling rights if needed + castling + promotion
+
   // flip player to move
   board->flags ^= BOARD_FLAGS_TURN;
   board_invariants(board);
@@ -535,7 +624,20 @@ void move_gen_unmake_move(board *board, move move) {
     board->pieces[cap_piece] = bitboard_set_square(board->pieces[cap_piece], cap_square);
     board->players[opponent] = bitboard_set_square(board->players[opponent], cap_square);
   }
-  // TODO: handle castling
+  // if castling, move rook back
+  if(move_is_castle(move)) {
+    int side = board_pos_to_x(dst) == 2 ? QUEEN : KING;
+    int rook_y = player == WHITE ? 0 : 7;
+    int rook_src_x = side == QUEEN ? 0 : 7;
+    int rook_dst_x = side == QUEEN ? 3 : 5;
+    board_pos rook_src = board_pos_from_xy(rook_src_x, rook_y);
+    board_pos rook_dst = board_pos_from_xy(rook_dst_x, rook_y);
+    // set src and clear dst
+    board->players[player] = bitboard_set_square(board->players[player], rook_src);
+    board->pieces[ROOK] = bitboard_set_square(board->pieces[ROOK], rook_src);
+    board->players[player] = bitboard_clear_square(board->players[player], rook_dst);
+    board->pieces[ROOK] = bitboard_clear_square(board->pieces[ROOK], rook_dst);
+  }
   board_invariants(board);
 }
 
@@ -584,7 +686,7 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
     }
   }
 
-  move res = construct_move(generator->board->flags, generator->cur_square, dst, is_promote, generator->cur_promotion, is_capture, capture_piece, capture_pos);
+  move res = construct_move(generator->board->flags, generator->cur_square, dst, is_promote, generator->cur_promotion, is_capture, capture_piece, capture_pos, 0);
   // move to next promotion type
   if(is_promote) {
     move_gen_next_promote(generator);
@@ -600,13 +702,70 @@ bitboard board_player_in_check(const board *board, int player) {
   return board_is_square_attacked(board, king_pos, !player);
 }
 
+/**
+ * generate the castling move for side, or return MOVE_END if side can't castle
+ * if the
+ */
+static move move_gen_castle(move_gen *generator, int player, int side, int undo_move) {
+  if(!board_can_castle(generator->board, player, side)) {
+    return MOVE_END;
+  }
+  int y = player == WHITE ? 0 : 7;
+  // direction from king to rook
+  int dir = side == QUEEN ? -1 : 1;
+  // make sure king and rook positions are in expected
+  board_pos king = board_pos_from_xy(4, y);
+  board_pos rook = side == QUEEN ? board_pos_from_xy(0, y) : board_pos_from_xy(7, y);
+  assert(board_piece_on_square(generator->board, king) == KING);
+  assert(board_piece_on_square(generator->board, rook) == ROOK);
+  assert(board_player_on_square(generator->board, king) == player);
+  assert(board_player_on_square(generator->board, rook) == player);
+
+  // check for pieces between king and rook
+  for(int x = board_pos_to_x(king) + dir; x != board_pos_to_x(rook); x += dir) {
+    if(bitboard_check_square(generator->occupancy_for_sliders, board_pos_from_xy(x, y)))
+      return MOVE_END;
+  }
+  // make sure square from king until dest aren't threatened
+  int x = board_pos_to_x(king);
+  for(int i = 0; i < 3; i++, x += dir ) {
+    if(board_is_square_attacked(generator->board, board_pos_from_xy(x, y), !player)) {
+      return MOVE_END;
+    }
+  }
+
+  move move = construct_move(generator->board->flags, king, board_pos_from_xy(board_pos_to_x(king) + 2*dir, y), 0, 0, 0, 0, 0, 1);
+  // make move if needed
+  if(!undo_move) {
+    move_gen_make_move(generator->board, move);
+    assert(!board_player_in_check(generator->board, player));
+  }
+  return move;
+}
+
 static move move_gen_next(move_gen *generator, int undo_moves) {
   board_invariants(generator->board);
   int player = board_player_to_move(generator->board);
   int opponent = !player;
   bitboard player_mask = generator->board->players[player];
 
-  if(generator->cur_mode == MOVE_GEN_MODE_NORMAL) {
+  if (generator->cur_mode == MOVE_GEN_MODE_END) {
+    return MOVE_END;
+  } else if(generator->cur_mode == MOVE_GEN_MODE_CASTLE_KING) {
+    generator->cur_mode = MOVE_GEN_MODE_CASTLE_QUEEN;
+    move castle = move_gen_castle(generator, player, KING, undo_moves);
+    if(castle != MOVE_END)
+      return castle;
+    else
+      return move_gen_next(generator, undo_moves);
+  } else if (generator->cur_mode == MOVE_GEN_MODE_CASTLE_QUEEN) {
+    generator->cur_mode = MOVE_GEN_MODE_END;
+    move castle = move_gen_castle(generator, player, QUEEN, undo_moves);
+    if(castle != MOVE_END)
+      return castle;
+    else
+      return move_gen_next(generator, undo_moves);
+  } else if(generator->cur_mode == MOVE_GEN_MODE_NORMAL) {
     // if moves are remaining in bitboard, return them
     if(generator->cur_moves) {
       move next_move = move_gen_next_from_cur_moves(generator);
@@ -630,17 +789,18 @@ static move move_gen_next(move_gen *generator, int undo_moves) {
         generator->cur_piece_type++;
       }
       // if we reached the end of all the pieces, move to castles
-      // TODO: actual gen castle moves
       if(generator->cur_piece_type > QUEEN) {
-        return MOVE_END;
-        break;
+        generator->cur_mode = MOVE_GEN_MODE_CASTLE_KING;
+        return move_gen_next(generator, undo_moves);
       }
     } while(!bitboard_check_square(generator->board->pieces[generator->cur_piece_type] & player_mask, generator->cur_square));
+
+    // generate move mask for the current square and piece type
+    generator->cur_moves = move_gen_reg_moves_mask(generator->occupancy_for_sliders, generator->occupancy_for_pawns, generator->cur_piece_type, player, generator->cur_square) & generator->final_moves_mask;
+    return move_gen_next(generator, undo_moves);
+  } else {
+    assert(0);
   }
-  // generate move mask for the current square and piece type
-  assert(generator->cur_mode == MOVE_GEN_MODE_NORMAL);
-  generator->cur_moves = move_gen_reg_moves_mask(generator->occupancy_for_sliders, generator->occupancy_for_pawns, generator->cur_piece_type, player, generator->cur_square) & generator->final_moves_mask;
-  return move_gen_next(generator, undo_moves);
 }
 
 move move_gen_next_move(move_gen *generator) {

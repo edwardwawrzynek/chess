@@ -82,6 +82,8 @@ board_pos board_pos_from_xy(int x, int y);
  * Convert a board_pos to x and y coordinates
  * Sets *x and *y to the resulting position */
 void board_pos_to_xy(board_pos pos, int *x, int *y);
+int board_pos_to_x(board_pos pos);
+int board_pos_to_y(board_pos pos);
 
 /**
  * Convert a board_pos to algebraic notation (eg a1, h6, etc)

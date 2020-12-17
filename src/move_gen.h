@@ -47,6 +47,11 @@ int move_is_capture(move move);
  * if a move is a capture, return what piece type is being captured
  * return -1 otherwise */
 int move_capture_piece(move move);
+
+/**
+ * return 1 if a move is a castle, 0 otherwise */
+int move_is_castle(move move);
+
 /**
  * if a move is a capture, return what square is being captured
  * return BOARD_POS_INVALID otherwise

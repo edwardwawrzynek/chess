@@ -38,12 +38,3 @@ int main(int argc, char **argv) {
 
   return 0;
 }
-
-/*int main() {
-  move_gen_pregenerate();
-  board game;
-  board_from_fen_str(&game, "8/2p5/3p4/1P4kr/1R6/8/4p1P1/3K4 b - - 0 1");
-  board_print(&game);
-  bitboard attacks = board_player_in_check(&game, WHITE);
-  bitboard_print_pretty(attacks);
-}*/

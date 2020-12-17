@@ -143,6 +143,14 @@ void board_pos_to_xy(board_pos pos, int *x, int *y) {
   *y = (pos >> 3) & 0x07;
 }
 
+int board_pos_to_x(board_pos pos) {
+  return pos & 0x07;
+}
+
+int board_pos_to_y(board_pos pos) {
+  return (pos >> 3) & 0x07;
+}
+
 void board_pos_to_str(board_pos pos, char *str) {
   assert(pos < 64);
   int x, y;
