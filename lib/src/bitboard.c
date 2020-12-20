@@ -10,10 +10,9 @@
     }
 #endif
 
-#include "bitboard.h"
+#include "chess-util.h"
 #include <stdio.h>
 #include <assert.h>
-#include <string.h>
 #include <ctype.h>
 
 int bitboard_popcount(bitboard board) {

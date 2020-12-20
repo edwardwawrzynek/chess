@@ -2,7 +2,7 @@
 #define FOUND_MAGICS_H_INCL
 
 #include <stdint.h>
-#include "bitboard.h"
+#include "chess-util.h"
 
 /**
  * bishop and rook magic bitboard constants

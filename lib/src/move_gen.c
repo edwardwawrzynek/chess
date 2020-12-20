@@ -1,4 +1,4 @@
-#include "move_gen.h"
+#include "chess-util.h"
 #include "found_magics.h"
 #include <assert.h>
 #include <stdio.h>

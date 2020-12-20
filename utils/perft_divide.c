@@ -1,5 +1,5 @@
-#include "move_gen.h"
-#include "stdlib.h"
+#include "chess-util.h"
+#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 
@@ -28,7 +28,10 @@ int perft(int depth, int cur, board* board) {
 }
 
 int main(int argc, char **argv) {
-  assert(argc == 3);
+  if(argc != 3) {
+    printf("usage: %s \"fenboard\" depth\n", argv[0]);
+    return 1;
+  }
   move_gen_pregenerate();
   board game;
   board_from_fen_str(&game, argv[1]);

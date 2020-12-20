@@ -1,7 +1,5 @@
-#include "move_gen.h"
-#include "stdlib.h"
+#include "chess-util.h"
 #include <stdio.h>
-#include <assert.h>
 
 int64_t perft(int depth, board* board) {
   if(depth == 0)
@@ -38,7 +36,7 @@ int run_test(FILE *in) {
       fprintf(stderr, "pertf_test: error:\non board: %s\nat depth: %i\nperft found %li moves (expected %li)\n", fen_string, i, actual, expect);
       fail = 1;
     } else {
-      printf("pertf_test: good: board %s at depth %li good (%li moves found)\n", fen_string, i, actual);
+      printf("pertf_test: good: board %s at depth %i good (%li moves found)\n", fen_string, i, actual);
     }
   }
   return fail;
