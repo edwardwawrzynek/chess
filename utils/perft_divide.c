@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <assert.h>
 
-int perft(int depth, int cur, board* board) {
-  if(depth == 0)
+int perft(int depth, int cur, board *board) {
+  if (depth == 0)
     return 1;
 
   move_gen generate;
@@ -12,9 +12,9 @@ int perft(int depth, int cur, board* board) {
 
   int count = 0;
   move move;
-  while((move = move_gen_make_next_move(&generate)) != MOVE_END) {
+  while ((move = move_gen_make_next_move(&generate)) != MOVE_END) {
     int moves = perft(depth - 1, cur + 1, board);
-    if(cur == 0) {
+    if (cur == 0) {
       char move_str[6];
       move_to_str(move, move_str);
       char board_fen[87];
@@ -22,13 +22,13 @@ int perft(int depth, int cur, board* board) {
       printf("%s: %i\t(%s)\n", move_str, moves, board_fen);
     }
     count += moves;
-    move_gen_unmake_move(board, move);
+    board_unmake_move(board, move);
   }
   return count;
 }
 
 int main(int argc, char **argv) {
-  if(argc != 3) {
+  if (argc != 3) {
     printf("usage: %s \"fenboard\" depth\n", argv[0]);
     return 1;
   }

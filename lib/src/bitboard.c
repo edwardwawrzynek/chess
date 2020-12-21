@@ -3,11 +3,11 @@
 #  include <nmmintrin.h>
 #  include <intrin.h>
 #  define __builtin_popcountll _mm_popcnt_u64
-    static inline int __builtin_ctzll(unsigned long long x) {
-        unsigned long ret;
-        _BitScanForward64(&ret, x);
-        return (int)ret;
-    }
+static inline int __builtin_ctzll(unsigned long long x) {
+    unsigned long ret;
+    _BitScanForward64(&ret, x);
+    return (int)ret;
+}
 #endif
 
 #include "chess-util.h"
@@ -83,7 +83,7 @@ bitboard bitboard_shift_se(bitboard board) {
 
 static void bitboard_print_col_header() {
   printf("   ");
-  for(int x = 0; x < 8; x++) {
+  for (int x = 0; x < 8; x++) {
     printf(" %c", 'a' + x);
   }
   printf("    \n");
@@ -96,9 +96,9 @@ static void bitboard_print_col_seperator() {
 void bitboard_print(bitboard board) {
   bitboard_print_col_header();
   bitboard_print_col_seperator();
-  for(int y = 7; y >= 0; y--) {
+  for (int y = 7; y >= 0; y--) {
     printf("%c |", '1' + y);
-    for(int x = 0; x < 8; x++) {
+    for (int x = 0; x < 8; x++) {
       board_pos pos = board_pos_from_xy(x, y);
       printf(" %c", bitboard_check_square(board, pos) ? '1' : '0');
     }
@@ -111,12 +111,12 @@ void bitboard_print(bitboard board) {
 void bitboard_print_pretty(bitboard board) {
   bitboard_print_col_header();
   printf("  ┌─────────────────┐\n");
-  for(int y = 7; y >= 0; y--) {
+  for (int y = 7; y >= 0; y--) {
     printf("%c │", '1' + y);
-    for(int x = 0; x < 8; x++) {
+    for (int x = 0; x < 8; x++) {
 
       board_pos pos = board_pos_from_xy(x, y);
-      if(bitboard_check_square(board, pos)) {
+      if (bitboard_check_square(board, pos)) {
         printf("\x1b[1;31m 1\x1b[m");
       } else {
         printf(" 0");
@@ -129,7 +129,7 @@ void bitboard_print_pretty(bitboard board) {
 }
 
 board_pos board_pos_from_xy(int x, int y) {
-  if(x < 0 || y < 0 || x >= 8 || y >= 8) {
+  if (x < 0 || y < 0 || x >= 8 || y >= 8) {
     return BOARD_POS_INVALID;
   } else {
     return x + (y << 3);
@@ -159,9 +159,9 @@ void board_pos_to_str(board_pos pos, char *str) {
   str[2] = '\0';
 }
 
-board_pos board_pos_from_str(const char * str) {
+board_pos board_pos_from_str(const char *str) {
   int x, y;
-  if(str[0] >= 'a' && str[0] <= 'h') {
+  if (str[0] >= 'a' && str[0] <= 'h') {
     x = str[0] - 'a';
   } else if (str[0] >= 'A' && str[0] <= 'H') {
     x = str[0] - 'A';
@@ -181,9 +181,9 @@ void board_invariants(const board *board) {
 #ifndef NDEBUG
   // make sure player occupancy don't overlap
   assert((board->players[0] & board->players[1]) == 0);
-  for(int i = 0; i < 6; i++) {
-    for(int j = 0; j < 6; j++) {
-      if(i == j) continue;
+  for (int i = 0; i < 6; i++) {
+    for (int j = 0; j < 6; j++) {
+      if (i == j) continue;
       assert((board->pieces[i] & board->pieces[j]) == 0);
     }
   }
@@ -191,7 +191,7 @@ void board_invariants(const board *board) {
   assert(bitboard_popcount(board->players[0] & board->pieces[KING]) == 1);
   assert(bitboard_popcount(board->players[1] & board->pieces[KING]) == 1);
   // make sure ep target square is empty if present and on rank 3 or 6
-  if(board->flags & BOARD_FLAGS_EP_PRESENT) {
+  if (board->flags & BOARD_FLAGS_EP_PRESENT) {
     int player_to_move = board_player_to_move(board);
     board_pos ep_target = board->flags & BOARD_FLAGS_EP_SQUARE;
     int x, y;
@@ -203,7 +203,7 @@ void board_invariants(const board *board) {
 }
 
 int board_piece_char_to_piece(char c) {
-  switch(c) {
+  switch (c) {
     case 'P':
     case 'p':
       return PAWN;
@@ -228,7 +228,7 @@ int board_piece_char_to_piece(char c) {
 }
 
 int board_piece_char_to_player(char c) {
-  switch(c) {
+  switch (c) {
     case 'P':
     case 'N':
     case 'B':
@@ -261,25 +261,27 @@ char board_piece_char_from_piece_player(int piece, int player) {
 
 void board_from_fen_str(board *board, const char *fen_string) {
   // clear board
-  for(int i = 0; i < 2; i++) {
+  for (int i = 0; i < 2; i++) {
     board->players[i] = 0L;
   }
-  for(int i = 0; i < 6; i++) {
+  for (int i = 0; i < 6; i++) {
     board->pieces[i] = 0L;
   }
   board->flags = 0;
 
   // read piece locations
-  for(int rank = 7; rank >= 0; rank--) {
+  for (int rank = 7; rank >= 0; rank--) {
     int file = 0;
-    while(*fen_string != '/' && !isspace(*fen_string)) {
-      if(*fen_string >= '1' && *fen_string <= '8') {
+    while (*fen_string != '/' && !isspace(*fen_string)) {
+      if (*fen_string >= '1' && *fen_string <= '8') {
         file += *fen_string - '0';
       } else {
         int player = board_piece_char_to_player(*fen_string);
         int piece = board_piece_char_to_piece(*fen_string);
-        board->players[player] = bitboard_set_square(board->players[player], board_pos_from_xy(file, rank));
-        board->pieces[piece] = bitboard_set_square(board->pieces[piece], board_pos_from_xy(file, rank));
+        board->players[player] = bitboard_set_square(board->players[player],
+                                                     board_pos_from_xy(file, rank));
+        board->pieces[piece] = bitboard_set_square(board->pieces[piece],
+                                                   board_pos_from_xy(file, rank));
         file++;
       }
       fen_string++;
@@ -287,27 +289,28 @@ void board_from_fen_str(board *board, const char *fen_string) {
     fen_string++;
   }
 
-  while(isspace(*fen_string)) {
+  while (isspace(*fen_string)) {
     fen_string++;
   }
 
   // read player to move
-  if(*fen_string == 'b') {
+  if (*fen_string == 'b') {
     board->flags |= BOARD_FLAGS_TURN;
-  } else if(*fen_string == 'w') {
+  } else if (*fen_string == 'w') {
     board->flags &= ~BOARD_FLAGS_TURN;
   } else {
     assert(0);
   }
   fen_string++;
 
-  while(isspace(*fen_string)) {
+  while (isspace(*fen_string)) {
     fen_string++;
   }
 
   // read castling availability
-  while(*fen_string == 'K' || *fen_string == 'Q' || *fen_string == 'k' || *fen_string == 'q' || *fen_string == '-') {
-    switch(*fen_string) {
+  while (*fen_string == 'K' || *fen_string == 'Q' || *fen_string == 'k' || *fen_string == 'q' ||
+         *fen_string == '-') {
+    switch (*fen_string) {
       case 'K':
         board->flags |= BOARD_FLAGS_W_CASTLE_KING;
         break;
@@ -327,12 +330,12 @@ void board_from_fen_str(board *board, const char *fen_string) {
     fen_string++;
   }
 
-  while(isspace(*fen_string)) {
+  while (isspace(*fen_string)) {
     fen_string++;
   }
 
   // read en passant target
-  if(*fen_string == '-') {
+  if (*fen_string == '-') {
     board->flags &= ~BOARD_FLAGS_EP_PRESENT;
     fen_string++;
   } else {
@@ -354,19 +357,19 @@ void board_from_fen_str(board *board, const char *fen_string) {
  * castling_str must have 5 bytes allocated */
 static void board_castling_to_str(const board *board, char *castling_str) {
   char *castling = castling_str;
-  if(board->flags & BOARD_FLAGS_W_CASTLE_KING) {
+  if (board->flags & BOARD_FLAGS_W_CASTLE_KING) {
     *castling++ = 'K';
   }
   if (board->flags & BOARD_FLAGS_W_CASTLE_QUEEN) {
     *castling++ = 'Q';
   }
-  if(board->flags & BOARD_FLAGS_B_CASTLE_KING) {
+  if (board->flags & BOARD_FLAGS_B_CASTLE_KING) {
     *castling++ = 'k';
   }
   if (board->flags & BOARD_FLAGS_B_CASTLE_QUEEN) {
     *castling++ = 'q';
   }
-  if(castling == castling_str) {
+  if (castling == castling_str) {
     *castling++ = '-';
   }
   *castling = '\0';
@@ -375,8 +378,8 @@ static void board_castling_to_str(const board *board, char *castling_str) {
 /**
  * convert en passant square to string
  * ep_str must have three bytes allocated */
-static void board_ep_to_str(const board *board, char* ep_str) {
-  if(board->flags & BOARD_FLAGS_EP_PRESENT) {
+static void board_ep_to_str(const board *board, char *ep_str) {
+  if (board->flags & BOARD_FLAGS_EP_PRESENT) {
     board_pos_to_str(board->flags & BOARD_FLAGS_EP_SQUARE, ep_str);
   } else {
     *ep_str++ = '-';
@@ -386,15 +389,15 @@ static void board_ep_to_str(const board *board, char* ep_str) {
 
 void board_to_fen_str(const board *board, char *res_str) {
   board_invariants(board);
-  for(int y = 7; y >= 0; y--) {
+  for (int y = 7; y >= 0; y--) {
     int empty_counter = 0;
-    for(int x = 0; x < 8; x++) {
+    for (int x = 0; x < 8; x++) {
       int player = board_player_on_square(board, board_pos_from_xy(x, y));
       int piece = board_piece_on_square(board, board_pos_from_xy(x, y));
-      if(player == -1) {
+      if (player == -1) {
         empty_counter++;
       } else {
-        if(empty_counter > 0) {
+        if (empty_counter > 0) {
           assert(empty_counter <= 8);
           *res_str++ = empty_counter + '0';
           empty_counter = 0;
@@ -402,31 +405,31 @@ void board_to_fen_str(const board *board, char *res_str) {
         *res_str++ = board_piece_char_from_piece_player(piece, player);
       }
     }
-    if(empty_counter > 0) {
+    if (empty_counter > 0) {
       assert(empty_counter <= 8);
       *res_str++ = empty_counter + '0';
       empty_counter = 0;
     }
-    if(y > 0) {
+    if (y > 0) {
       *res_str++ = '/';
     }
   }
 
   *res_str++ = ' ';
-  if(board_player_to_move(board) == WHITE)
+  if (board_player_to_move(board) == WHITE)
     *res_str++ = 'w';
   else
     *res_str++ = 'b';
 
   *res_str++ = ' ';
   board_castling_to_str(board, res_str);
-  while(*res_str != '\0') {
+  while (*res_str != '\0') {
     res_str++;
   }
   *res_str++ = ' ';
 
   board_ep_to_str(board, res_str);
-  while(*res_str != '\0') {
+  while (*res_str != '\0') {
     res_str++;
   }
   *res_str++ = ' ';
@@ -443,7 +446,7 @@ int board_player_to_move(const board *board) {
 }
 
 board_pos board_get_en_passant_target(const board *board) {
-  if(!(board->flags & BOARD_FLAGS_EP_PRESENT)) {
+  if (!(board->flags & BOARD_FLAGS_EP_PRESENT)) {
     return BOARD_POS_INVALID;
   } else {
     return board->flags & BOARD_FLAGS_EP_SQUARE;
@@ -454,13 +457,13 @@ int board_can_castle(const board *board, int player, int side) {
   assert(player == WHITE || player == BLACK);
   assert(side == KING || side == QUEEN);
 
-  if(player == WHITE && side == KING) {
+  if (player == WHITE && side == KING) {
     return board->flags & BOARD_FLAGS_W_CASTLE_KING ? 1 : 0;
-  } else if(player == WHITE && side == QUEEN) {
+  } else if (player == WHITE && side == QUEEN) {
     return board->flags & BOARD_FLAGS_W_CASTLE_QUEEN ? 1 : 0;
-  } else if(player == BLACK && side == KING) {
+  } else if (player == BLACK && side == KING) {
     return board->flags & BOARD_FLAGS_B_CASTLE_KING ? 1 : 0;
-  } else if(player == BLACK && side == QUEEN) {
+  } else if (player == BLACK && side == QUEEN) {
     return board->flags & BOARD_FLAGS_B_CASTLE_QUEEN ? 1 : 0;
   }
 
@@ -475,14 +478,15 @@ static void board_print_flags(const board *board) {
   char ep_str[3];
   board_ep_to_str(board, ep_str);
 
-  printf("move: %s, castling: %s, ep target: %s\n", board->flags & BOARD_FLAGS_TURN ? "black" : "white", castling_str, ep_str);
+  printf("move: %s, castling: %s, ep target: %s\n",
+         board->flags & BOARD_FLAGS_TURN ? "black" : "white", castling_str, ep_str);
   printf("=======================\n");
 }
 
 int board_piece_on_square(const board *board, board_pos square) {
   assert(square < 64);
-  for(int p = 0; p < 6; p++) {
-    if(bitboard_check_square(board->pieces[p], square)) {
+  for (int p = 0; p < 6; p++) {
+    if (bitboard_check_square(board->pieces[p], square)) {
       return p;
     }
   }
@@ -492,8 +496,8 @@ int board_piece_on_square(const board *board, board_pos square) {
 
 int board_player_on_square(const board *board, board_pos square) {
   assert(square < 64);
-  for(int p = 0; p < 2; p++) {
-    if(bitboard_check_square(board->players[p], square)) {
+  for (int p = 0; p < 2; p++) {
+    if (bitboard_check_square(board->players[p], square)) {
       return p;
     }
   }
@@ -504,21 +508,21 @@ int board_player_on_square(const board *board, board_pos square) {
 void board_print(const board *board) {
   bitboard_print_col_header();
   bitboard_print_col_seperator();
-  for(int y = 7; y >= 0; y--) {
+  for (int y = 7; y >= 0; y--) {
     printf("%c |", '1' + y);
-    for(int x = 0; x < 8; x++) {
+    for (int x = 0; x < 8; x++) {
       board_pos pos = board_pos_from_xy(x, y);
       char piece_char = '.';
       int piece = board_piece_on_square(board, pos);
       int player = board_player_on_square(board, pos);
-      if(piece != -1) {
+      if (piece != -1) {
         piece_char = board_piece_char_from_piece_player(piece, player);
       }
-      if(player == BLACK) {
+      if (player == BLACK) {
         printf("\x1b[31m");
       }
       printf(" %c", piece_char);
-      if(player == BLACK) {
+      if (player == BLACK) {
         printf("\x1b[m");
       }
     }
@@ -529,21 +533,21 @@ void board_print(const board *board) {
   board_print_flags(board);
 }
 
-static char* utf8_pieces[2][6] = {
+static char *utf8_pieces[2][6] = {
   {"♚", "♟︎", "♞", "♜", "♝", "♛"}, // black
-  {"♔", "♙", "♘", "♖", "♗", "♕"}  // white
+  {"♔", "♙",  "♘", "♖", "♗", "♕"}  // white
 };
 
 void board_print_pretty(const board *board) {
   bitboard_print_col_header();
   printf("  ┌─────────────────┐  \n");
-  for(int y = 7; y >= 0; y--) {
+  for (int y = 7; y >= 0; y--) {
     printf("%c │\x1b[97m", '1' + y);
-    for(int x = 0; x < 8; x++) {
+    for (int x = 0; x < 8; x++) {
       board_pos pos = board_pos_from_xy(x, y);
       int player = board_player_on_square(board, pos);
       int piece = board_piece_on_square(board, pos);
-      if(player == -1) {
+      if (player == -1) {
         printf(" .");
       } else {
         printf(" %s", utf8_pieces[player][piece]);
