@@ -42,8 +42,9 @@ public:
   std::vector<Game *> games;
   size_t cur_game_index;
 
-  int games_complete;
-  int score;
+  int wins;
+  int losses;
+  int ties;
 
   Player(std::string name, int id);
 
@@ -69,5 +70,5 @@ public:
   State();
 };
 
-std::string get_uuid();
+std::string get_apikey();
 #endif

@@ -430,7 +430,9 @@ move move_from_str(const char *move_str, const board *board) {
       if (promote_codes[p] == promote_char)
         promote_piece = p;
     }
-    assert(promote_piece != -1);
+    if(promote_piece == -1) {
+      return MOVE_END;
+    }
   }
   // parse src + dst
   board_pos src = board_pos_from_str(src_str);
@@ -440,7 +442,9 @@ move move_from_str(const char *move_str, const board *board) {
   board_pos capture_pos = BOARD_POS_INVALID;
   int capture_piece = board_piece_on_square(board, dst);
   if (capture_piece != -1) {
-    assert(board_player_on_square(board, dst) == !board_player_to_move(board));
+    if(board_player_on_square(board, dst) == board_player_to_move(board)) {
+      return MOVE_END;
+    }
     is_capture = 1;
     capture_pos = dst;
   }
@@ -449,7 +453,9 @@ move move_from_str(const char *move_str, const board *board) {
     is_capture = 1;
     capture_pos = en_passant_target_to_pawn_pos(board_get_en_passant_target(board));
     capture_piece = board_piece_on_square(board, capture_pos);
-    assert(capture_piece == PAWN);
+    if(capture_piece != PAWN) {
+      return MOVE_END;
+    }
   }
   int is_castle = 0;
   // check for castling
@@ -911,6 +917,9 @@ int moves_equal(move move0, move move1) {
 }
 
 int move_is_legal(move move_to_check, board *board) {
+  if(move_to_check == MOVE_END) {
+    return 0;
+  }
   move_gen gen;
   move_gen_init(&gen, board);
   move cur;

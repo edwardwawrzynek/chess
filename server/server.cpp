@@ -61,7 +61,7 @@ Player *Game::player_to_move() {
   }
 }
 
-Player::Player(std::string name, int id): id(id), name(std::move(name)), games(), cur_game_index(0), games_complete(0), score(0) {}
+Player::Player(std::string name, int id): id(id), name(std::move(name)), games(), cur_game_index(0), wins(0), losses(0), ties(0) {}
 
 Game *Player::get_cur_game() {
   if(cur_game_index >= games.size()) {
@@ -83,8 +83,14 @@ void Player::update_cur_game() {
     // check if current game is ended
     Game *cur_game = games[cur_game_index];
     if(cur_game->finished) {
-      games_complete++;
-      score += cur_game->adjust_score_for(this);
+      int game_score = cur_game->adjust_score_for(this);
+      if(game_score == 0) {
+        ties++;
+      } else if(game_score == 1) {
+        wins++;
+      } else if(game_score == -1) {
+        losses++;
+      }
       cur_game_index++;
     }
   }
@@ -97,7 +103,7 @@ void Player::serialize(std::ostream& out, const std::string& api_key, bool do_ap
   } else {
     out << "-, ";
   }
-  out << name << ", " << games_complete << ", " << score << ",";
+  out << name << ", " << wins << ", " << losses << ", " << ties << ",";
   for(Game * game: games) {
     out << " " << game->id;
   }
@@ -106,12 +112,12 @@ void Player::serialize(std::ostream& out, const std::string& api_key, bool do_ap
 
 
 std::pair<std::pair<Player *, std::string>, std::pair<Player *, std::string>> State::new_game() {
-  auto key0 = get_uuid();
-  auto key1 = get_uuid();
+  auto key0 = get_apikey();
+  auto key1 = get_apikey();
 
-  auto player0 = std::make_unique<Player>("Unnamed Player " + key0.substr(0, 4), player_id++);
+  auto player0 = std::make_unique<Player>("Unnamed " + get_apikey().substr(0, 4), player_id++);
   auto player0_ptr = player0.get();
-  auto player1 = std::make_unique<Player>("Unnamed Player " + key1.substr(0, 4), player_id++);
+  auto player1 = std::make_unique<Player>("Unnamed " + get_apikey().substr(0, 4), player_id++);
   auto player1_ptr = player1.get();
   auto game = std::make_unique<Game>(player0_ptr, player1_ptr, games.size());
   player0->add_game(game.get());
@@ -142,7 +148,7 @@ void State::update_cur_games() {
   }
 }
 
-std::string get_uuid() {
+std::string get_apikey() {
   static std::random_device dev;
   static std::mt19937 rng(dev());
 
@@ -151,7 +157,7 @@ std::string get_uuid() {
   const char *v = "0123456789abcdef";
 
   std::string res;
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < 8; i++) {
     res += v[dist(rng)];
     res += v[dist(rng)];
   }
@@ -218,7 +224,7 @@ int main() {
     /* Settings */
     .compression = uWS::SHARED_COMPRESSOR,
     .maxPayloadLength = 16 * 1024,
-    .idleTimeout = 1000,
+    .idleTimeout = 0,
     .maxBackpressure = 1 * 1024 * 1024,
     /* Handlers */
     .upgrade = nullptr,
@@ -249,7 +255,7 @@ int main() {
         // send current state
         std::ostringstream stream;
         state.serialize(stream, false);
-        if(stream.str() != "") {
+        if(!stream.str().empty()) {
           ws->send(stream.str(), opCode, true);
         }
       }
@@ -315,6 +321,17 @@ int main() {
               ws->publish("observe", stream.str());
             }
           }
+        }
+      }
+      // command: playerid
+      // return the player id associated with the current api key
+      else if(cmd[0] == "playerid") {
+        auto player = ((PerSocketData *)ws->getUserData())->player;
+        if(player == nullptr) {
+          ws->send("error not registered as a player (use apikey command)", opCode);
+        } else {
+          auto id = player->id;
+          ws->send("playerid " + std::to_string(id) + "\n", opCode);
         }
       }
       else {
