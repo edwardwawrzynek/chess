@@ -34,12 +34,13 @@ int run_test(FILE *in) {
     int64_t actual = perft(i, &board);
     if (expect != actual) {
       fprintf(stderr,
-              "pertf_test: error:\non board: %s\nat depth: %i\nperft found %li moves (expected %li)\n",
+              "pertf_test: error:\non board: %s\nat depth: %i\nperft found %li "
+              "moves (expected %li)\n",
               fen_string, i, actual, expect);
       fail = 1;
     } else {
-      printf("pertf_test: good: board %s at depth %i good (%li moves found)\n", fen_string, i,
-             actual);
+      printf("pertf_test: good: board %s at depth %i good (%li moves found)\n",
+             fen_string, i, actual);
     }
   }
   return fail;

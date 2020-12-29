@@ -1,7 +1,7 @@
 #include "chess-util.h"
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 int perft(int depth, int cur, board *board) {
   if (depth == 0)

@@ -1,9 +1,9 @@
 #ifndef H_SERVER_INCL
 #define H_SERVER_INCL
 
-#include <vector>
-#include <map>
 #include <iostream>
+#include <map>
+#include <vector>
 extern "C" {
 #include "chess-util.h"
 }
@@ -32,7 +32,7 @@ public:
 
   Player *player_to_move();
 
-  void serialize(std::ostream& out);
+  void serialize(std::ostream &out);
 };
 
 class Player {
@@ -48,11 +48,12 @@ public:
 
   Player(std::string name, int id);
 
-  Game * get_cur_game();
+  Game *get_cur_game();
   void add_game(Game *game);
   void update_cur_game();
 
-  void serialize(std::ostream& out, const std::string& api_key, bool do_api_key);
+  void serialize(std::ostream &out, const std::string &api_key,
+                 bool do_api_key);
 };
 
 class State {
@@ -61,9 +62,10 @@ public:
   std::vector<std::unique_ptr<Game>> games;
   std::map<std::string, std::unique_ptr<Player>> players;
 
-  std::pair<std::pair<Player *, std::string>, std::pair<Player *, std::string>> new_game();
+  std::pair<std::pair<Player *, std::string>, std::pair<Player *, std::string>>
+  new_game();
 
-  void serialize(std::ostream& out, bool do_api_keys);
+  void serialize(std::ostream &out, bool do_api_keys);
 
   void update_cur_games();
 

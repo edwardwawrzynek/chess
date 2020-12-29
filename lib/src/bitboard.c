@@ -1,27 +1,23 @@
 // Windows MSVC fixes
 #ifdef _MSC_VER
-#  include <nmmintrin.h>
-#  include <intrin.h>
-#  define __builtin_popcountll _mm_popcnt_u64
+#include <intrin.h>
+#include <nmmintrin.h>
+#define __builtin_popcountll _mm_popcnt_u64
 static inline int __builtin_ctzll(unsigned long long x) {
-    unsigned long ret;
-    _BitScanForward64(&ret, x);
-    return (int)ret;
+  unsigned long ret;
+  _BitScanForward64(&ret, x);
+  return (int)ret;
 }
 #endif
 
 #include "chess-util.h"
-#include <stdio.h>
 #include <assert.h>
 #include <ctype.h>
+#include <stdio.h>
 
-int bitboard_popcount(bitboard board) {
-  return __builtin_popcountll(board);
-}
+int bitboard_popcount(bitboard board) { return __builtin_popcountll(board); }
 
-int bitboard_scan_lsb(bitboard board) {
-  return __builtin_ctzll(board);
-}
+int bitboard_scan_lsb(bitboard board) { return __builtin_ctzll(board); }
 
 int bitboard_check_square(bitboard board, board_pos square) {
   assert(square < 64);
@@ -44,13 +40,9 @@ bitboard bitboard_flip_square(bitboard board, board_pos square) {
 }
 
 /* --- bitboard shifting methods --- */
-bitboard bitboard_shift_n(bitboard board) {
-  return board << 8ULL;
-}
+bitboard bitboard_shift_n(bitboard board) { return board << 8ULL; }
 
-bitboard bitboard_shift_s(bitboard board) {
-  return board >> 8ULL;
-}
+bitboard bitboard_shift_s(bitboard board) { return board >> 8ULL; }
 
 // for east and west shifting, mask needed to prevent edges pieces from moving
 // up or down a row
@@ -142,13 +134,9 @@ void board_pos_to_xy(board_pos pos, int *x, int *y) {
   *y = (pos >> 3) & 0x07;
 }
 
-int board_pos_to_x(board_pos pos) {
-  return pos & 0x07;
-}
+int board_pos_to_x(board_pos pos) { return pos & 0x07; }
 
-int board_pos_to_y(board_pos pos) {
-  return (pos >> 3) & 0x07;
-}
+int board_pos_to_y(board_pos pos) { return (pos >> 3) & 0x07; }
 
 void board_pos_to_str(board_pos pos, char *str) {
   assert(pos < 64);
@@ -183,7 +171,8 @@ void board_invariants(const board *board) {
   assert((board->players[0] & board->players[1]) == 0);
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 6; j++) {
-      if (i == j) continue;
+      if (i == j)
+        continue;
       assert((board->pieces[i] & board->pieces[j]) == 0);
     }
   }
@@ -196,61 +185,63 @@ void board_invariants(const board *board) {
     board_pos ep_target = board->flags & BOARD_FLAGS_EP_SQUARE;
     int x, y;
     board_pos_to_xy(ep_target, &x, &y);
-    assert((player_to_move == WHITE && y == 5) || (player_to_move == BLACK && y == 2));
-    assert(!bitboard_check_square(board->players[0] & board->players[1], ep_target));
+    assert((player_to_move == WHITE && y == 5) ||
+           (player_to_move == BLACK && y == 2));
+    assert(!bitboard_check_square(board->players[0] & board->players[1],
+                                  ep_target));
   }
 #endif
 }
 
 int board_piece_char_to_piece(char c) {
   switch (c) {
-    case 'P':
-    case 'p':
-      return PAWN;
-    case 'N':
-    case 'n':
-      return KNIGHT;
-    case 'B':
-    case 'b':
-      return BISHOP;
-    case 'R':
-    case 'r':
-      return ROOK;
-    case 'Q':
-    case 'q':
-      return QUEEN;
-    case 'k':
-    case 'K':
-      return KING;
-    default:
-      assert(0);
+  case 'P':
+  case 'p':
+    return PAWN;
+  case 'N':
+  case 'n':
+    return KNIGHT;
+  case 'B':
+  case 'b':
+    return BISHOP;
+  case 'R':
+  case 'r':
+    return ROOK;
+  case 'Q':
+  case 'q':
+    return QUEEN;
+  case 'k':
+  case 'K':
+    return KING;
+  default:
+    assert(0);
   }
 }
 
 int board_piece_char_to_player(char c) {
   switch (c) {
-    case 'P':
-    case 'N':
-    case 'B':
-    case 'R':
-    case 'Q':
-    case 'K':
-      return WHITE;
-    case 'p':
-    case 'n':
-    case 'b':
-    case 'r':
-    case 'q':
-    case 'k':
-      return BLACK;
-    default:
-      assert(0);
+  case 'P':
+  case 'N':
+  case 'B':
+  case 'R':
+  case 'Q':
+  case 'K':
+    return WHITE;
+  case 'p':
+  case 'n':
+  case 'b':
+  case 'r':
+  case 'q':
+  case 'k':
+    return BLACK;
+  default:
+    assert(0);
   }
 }
 
 static char piece_str[2][6] = {
-  {'K', 'P', 'N', 'R', 'B', 'Q'}, // white
-  {'k', 'p', 'n', 'r', 'b', 'q'}  // black
+    {'K', 'P', 'N', 'R', 'B', 'Q'}, // white
+    {'k', 'p', 'n', 'r', 'b', 'q'}  // black
 };
 
 char board_piece_char_from_piece_player(int piece, int player) {
@@ -278,10 +269,10 @@ void board_from_fen_str(board *board, const char *fen_string) {
       } else {
         int player = board_piece_char_to_player(*fen_string);
         int piece = board_piece_char_to_piece(*fen_string);
-        board->players[player] = bitboard_set_square(board->players[player],
-                                                     board_pos_from_xy(file, rank));
-        board->pieces[piece] = bitboard_set_square(board->pieces[piece],
-                                                   board_pos_from_xy(file, rank));
+        board->players[player] = bitboard_set_square(
+            board->players[player], board_pos_from_xy(file, rank));
+        board->pieces[piece] = bitboard_set_square(
+            board->pieces[piece], board_pos_from_xy(file, rank));
         file++;
       }
       fen_string++;
@@ -308,24 +299,24 @@ void board_from_fen_str(board *board, const char *fen_string) {
   }
 
   // read castling availability
-  while (*fen_string == 'K' || *fen_string == 'Q' || *fen_string == 'k' || *fen_string == 'q' ||
-         *fen_string == '-') {
+  while (*fen_string == 'K' || *fen_string == 'Q' || *fen_string == 'k' ||
+         *fen_string == 'q' || *fen_string == '-') {
     switch (*fen_string) {
-      case 'K':
-        board->flags |= BOARD_FLAGS_W_CASTLE_KING;
-        break;
-      case 'Q':
-        board->flags |= BOARD_FLAGS_W_CASTLE_QUEEN;
-        break;
-      case 'k':
-        board->flags |= BOARD_FLAGS_B_CASTLE_KING;
-        break;
-      case 'q':
-        board->flags |= BOARD_FLAGS_B_CASTLE_QUEEN;
-        break;
-      case '-':
-      default:
-        break;
+    case 'K':
+      board->flags |= BOARD_FLAGS_W_CASTLE_KING;
+      break;
+    case 'Q':
+      board->flags |= BOARD_FLAGS_W_CASTLE_QUEEN;
+      break;
+    case 'k':
+      board->flags |= BOARD_FLAGS_B_CASTLE_KING;
+      break;
+    case 'q':
+      board->flags |= BOARD_FLAGS_B_CASTLE_QUEEN;
+      break;
+    case '-':
+    default:
+      break;
     }
     fen_string++;
   }
@@ -479,7 +470,8 @@ static void board_print_flags(const board *board) {
   board_ep_to_str(board, ep_str);
 
   printf("move: %s, castling: %s, ep target: %s\n",
-         board->flags & BOARD_FLAGS_TURN ? "black" : "white", castling_str, ep_str);
+         board->flags & BOARD_FLAGS_TURN ? "black" : "white", castling_str,
+         ep_str);
   printf("=======================\n");
 }
 
@@ -534,8 +526,8 @@ void board_print(const board *board) {
 }
 
 static char *utf8_pieces[2][6] = {
-  {"♚", "♟︎", "♞", "♜", "♝", "♛"}, // black
-  {"♔", "♙",  "♘", "♖", "♗", "♕"}  // white
+    {"♚", "♟︎", "♞", "♜", "♝", "♛"}, // black
+    {"♔", "♙", "♘", "♖", "♗", "♕"}       // white
 };
 
 void board_print_pretty(const board *board) {

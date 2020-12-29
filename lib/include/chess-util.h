@@ -2,6 +2,7 @@
 #define H_CHESS_INCL
 
 #include "stdint.h"
+#include "chess-util-typedefs.h"
 
 // bitboard definition + utilities
 
@@ -9,7 +10,8 @@
  * A bitboard is a data structure mapping one bit to one square on the board.
  * For chess, a bitboard stores a single boolean for each square.
  *
- * Implemented as a single 64-bit word. Squares map to bits in little endian order:
+ * Implemented as a single 64-bit word. Squares map to bits in little endian
+ * order:
  *    a  b  c  d  e  f  g  h
  *   ------------------------
  * 8| 56 57 58 59 60 61 62 63
@@ -21,15 +23,16 @@
  * 2| 08 09 10 11 12 13 14 15
  * 1| 00 01 02 03 04 05 06 07
  *
- * Bitboards are efficient because we can apply bitwise operations on them, which the cpu can perform quickly.
+ * Bitboards are efficient because we can apply bitwise operations on them,
+ * which the cpu can perform quickly.
  */
-typedef uint64_t bitboard;
+typedef __chess_util_bitboard bitboard;
 
 /**
  * A position on a bitboard -- a single square.
  *
  * Implemented as a bitboard index */
-typedef uint8_t board_pos;
+typedef __chess_util_board_pos board_pos;
 
 /**
  * Check if the bit is set for the given square */
@@ -52,7 +55,8 @@ bitboard bitboard_flip_square(bitboard board, board_pos square);
 int bitboard_popcount(bitboard board);
 
 /**
- * Get the index of the first bit set in the bitboard (starting from the least significant bit) */
+ * Get the index of the first bit set in the bitboard (starting from the least
+ * significant bit) */
 int bitboard_scan_lsb(bitboard board);
 
 bitboard bitboard_shift_n(bitboard board);
@@ -83,7 +87,8 @@ void bitboard_print_pretty(bitboard board);
 
 /**
  * Convert x and y coordinates to a board_pos
- * if x and y describe an invalid board position, BOARD_POS_INVALID is returned */
+ * if x and y describe an invalid board position, BOARD_POS_INVALID is returned
+ */
 board_pos board_pos_from_xy(int x, int y);
 
 /**
@@ -118,27 +123,23 @@ board_pos board_pos_from_str(const char *str);
 #define WHITE 0
 #define BLACK 1
 
-#define KING    0
-#define PAWN    1
-#define KNIGHT  2
-#define ROOK    3
-#define BISHOP  4
-#define QUEEN   5
+#define KING 0
+#define PAWN 1
+#define KNIGHT 2
+#define ROOK 3
+#define BISHOP 4
+#define QUEEN 5
 
-#define BOARD_FLAGS_EP_SQUARE   63
-#define BOARD_FLAGS_EP_PRESENT  64
-#define BOARD_FLAGS_TURN        128
+#define BOARD_FLAGS_EP_SQUARE 63
+#define BOARD_FLAGS_EP_PRESENT 64
+#define BOARD_FLAGS_TURN 128
 
-#define BOARD_FLAGS_W_CASTLE_KING   256
-#define BOARD_FLAGS_W_CASTLE_QUEEN  512
-#define BOARD_FLAGS_B_CASTLE_KING   1024
-#define BOARD_FLAGS_B_CASTLE_QUEEN  2048
+#define BOARD_FLAGS_W_CASTLE_KING 256
+#define BOARD_FLAGS_W_CASTLE_QUEEN 512
+#define BOARD_FLAGS_B_CASTLE_KING 1024
+#define BOARD_FLAGS_B_CASTLE_QUEEN 2048
 
-typedef struct board {
-  bitboard players[2];
-  bitboard pieces[6];
-  uint16_t flags;
-} board;
+typedef struct __chess_util_board board;
 
 /**
  * check that board is in a consistent state */
@@ -158,7 +159,8 @@ void board_to_fen_str(const board *board, char *res_str);
 int board_piece_on_square(const board *board, board_pos square);
 
 /**
- * get the player controlling the piece at the given square, or -1 if no piece is on the square */
+ * get the player controlling the piece at the given square, or -1 if no piece
+ * is on the square */
 int board_player_on_square(const board *board, board_pos square);
 
 /**
@@ -166,13 +168,16 @@ int board_player_on_square(const board *board, board_pos square);
 int board_player_to_move(const board *board);
 
 /**
- * get the en passant target square for the board, or BOARD_POS_INVALID if there is no target square
+ * get the en passant target square for the board, or BOARD_POS_INVALID if there
+ * is no target square
  *
- * the en passant target square is the square which a pawn skipped while moving forwards 2 squares last turn
- * the en passant target square is directly behind the pawn
- * this turn, that pawn can be capture by moving onto the en passant target square
+ * the en passant target square is the square which a pawn skipped while moving
+ * forwards 2 squares last turn the en passant target square is directly behind
+ * the pawn this turn, that pawn can be capture by moving onto the en passant
+ * target square
  *
- * if no pawn was moves forwards 2 squares last turn, then there is no en passant target square
+ * if no pawn was moves forwards 2 squares last turn, then there is no en
+ * passant target square
  */
 board_pos board_get_en_passant_target(const board *board);
 
@@ -190,7 +195,8 @@ void board_print_pretty(const board *board);
 
 /**
  * Convert a piece character to a piece index
- * pawn: P + p, knight: N + n, bishop: B + b, rook: R + r, queen: Q + q, king: K + k
+ * pawn: P + p, knight: N + n, bishop: B + b, rook: R + r, queen: Q + q, king: K
+ * + k
  */
 int board_piece_char_to_piece(char c);
 
@@ -224,11 +230,12 @@ void move_gen_pregenerate();
  * bits 31-29 : promotion piece value
  * bit  32    : set if the move is a capture
  * bits 33-35 : type of captured piece
- * bits 36-41 : square capture piece was on (may be different from move destination due to en passant)
+ * bits 36-41 : square capture piece was on (may be different from move
+ * destination due to en passant)
  */
-typedef uint64_t move;
+typedef __chess_util_move move;
 
-#define MOVE_END                  0xffffffffffffffffULL
+#define MOVE_END 0xffffffffffffffffULL
 
 /**
  * get the source square of a move (where a piece is being moved from ) */
@@ -283,34 +290,13 @@ void move_to_str(move move, char *res_str);
 
 /**
  * construct a move from a string and a board
- * board must be a legal board for the move to be applied on (but the move will not actually be made on it) */
+ * board must be a legal board for the move to be applied on (but the move will
+ * not actually be made on it) */
 move move_from_str(const char *move_str, const board *board);
 
 /**
  * move_gen contains the state of the move generation algorithm */
-typedef struct move_gen {
-  // board having move generated for
-  board *board;
-  // occupancy bitboards for sliders + pawns
-  // the occupancy for pawns includes the en passant target, occupancy for sliders doesn't
-  bitboard occupancy_for_sliders;
-  bitboard occupancy_for_pawns;
-  // final mask to & with moves
-  // for all moves, this should be ~us
-  // for attacks, this should be them
-  bitboard final_moves_mask;
-  // current move being generated
-  uint8_t cur_mode;
-  uint8_t cur_piece_type;
-  uint8_t cur_square;
-  uint8_t cur_promotion;
-  bitboard cur_moves;
-  // if all moves have been generated
-  uint8_t done;
-  // if at least one move was generated
-  uint8_t hit_move;
-} move_gen;
-
+typedef struct __chess_util_move_gen move_gen;
 
 /**
  * initialize a move_gen structure for a given board */
@@ -320,7 +306,8 @@ void move_gen_init(move_gen *move_gen, board *board);
  * check if a square on the board is attacked by a certain player
  * return a bitboard with each square set that is threatening the square
  * if the square is not attacked, the bitboard is 0 */
-bitboard board_is_square_attacked(const board *board, board_pos square, int attacking_player);
+bitboard board_is_square_attacked(const board *board, board_pos square,
+                                  int attacking_player);
 
 /**
  * check if player is in check (ie -- player's king is attacked by opponent) */
@@ -334,7 +321,8 @@ move move_gen_next_move(move_gen *generator);
 /**
  * get the next move from the move generator and apply it to board
  * if no more moves are available, the method returns MOVE_END
- * you MUST undo the move before calling move_gen_make_next_move or move_gen_next_move again */
+ * you MUST undo the move before calling move_gen_make_next_move or
+ * move_gen_next_move again */
 move move_gen_make_next_move(move_gen *generator);
 
 /**
@@ -349,15 +337,17 @@ void board_make_move(board *board, move move);
 void board_unmake_move(board *board, move move);
 
 /**
- * check if the player to move on the board the move_gen is associated with is in checkmate/stalemate
- * this must be called after the move_gen has been exhausted (all moves generated, MOVE_END returned)
+ * check if the player to move on the board the move_gen is associated with is
+ * in checkmate/stalemate this must be called after the move_gen has been
+ * exhausted (all moves generated, MOVE_END returned)
  */
 int move_gen_is_checkmate(move_gen *move_gen);
 int move_gen_is_stalemate(move_gen *move_gen);
 
 /**
  * check if a board is checkmated or stalemated for the player to move
- * move_gen_is_checkmate and move_gen_is_stalemate are faster if you have already run a move_gen
+ * move_gen_is_checkmate and move_gen_is_stalemate are faster if you have
+ * already run a move_gen
  */
 int board_is_checkmate(board *board);
 int board_is_stalemate(board *board);
@@ -370,7 +360,8 @@ int moves_equal(move move0, move move1);
 /**
  * check if a move is legal on the board
  * note: this is slow -- it runs through move generation for the board
- * moves generated by move_gen_next_move and move_gen_make_next_move are always legal
+ * moves generated by move_gen_next_move and move_gen_make_next_move are always
+ * legal
  */
 int move_is_legal(move move_to_check, board *board);
 

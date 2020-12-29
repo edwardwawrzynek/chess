@@ -6,7 +6,8 @@
 
 /**
  * knight and king move generation lookup table.
- * for each square on the board, the lookup table contains a bitboard with bits set for each valid move for a knight/king on that square */
+ * for each square on the board, the lookup table contains a bitboard with bits
+ * set for each valid move for a knight/king on that square */
 static bitboard move_gen_knights[64];
 static bitboard move_gen_kings[64];
 
@@ -19,7 +20,8 @@ static void move_gen_init_knights() {
     bitboard moves = 0;
     for (int i = -1; i <= 1; i += 2) {
       for (int j = -1; j <= 1; j += 2) {
-        // generate move offset by (1,2) and (2,1) and add to moves if square is in bounds
+        // generate move offset by (1,2) and (2,1) and add to moves if square is
+        // in bounds
         board_pos s1 = board_pos_from_xy(x + i * 1, y + j * 2);
         board_pos s2 = board_pos_from_xy(x + i * 2, y + j * 1);
 
@@ -58,8 +60,10 @@ static void move_gen_init_kings() {
 }
 
 /**
- * given a occupancy bitboard, return valid sliding moves from (x,y) in (dx,dy) direction */
-static bitboard gen_ray_moves(bitboard occupancy, int x, int y, int dx, int dy) {
+ * given a occupancy bitboard, return valid sliding moves from (x,y) in (dx,dy)
+ * direction */
+static bitboard gen_ray_moves(bitboard occupancy, int x, int y, int dx,
+                              int dy) {
   bitboard moves = 0;
   x = x + dx;
   y = y + dy;
@@ -102,28 +106,34 @@ static bitboard gen_bishop_moves(bitboard occupancy, board_pos square) {
 
 /**
  * sliding pieces (bishop and rook) move lookup table */
-#define SLIDING_TABLE_SIZE 107648 // sum of 1 << each entry in rook_magic_bits and bishop_magic_bits
+#define SLIDING_TABLE_SIZE                                                     \
+  107648 // sum of 1 << each entry in rook_magic_bits and bishop_magic_bits
 static bitboard sliding_magic_moves[SLIDING_TABLE_SIZE];
 // starting indexes for each position in the table
 static bitboard *rook_magic_table_ptr[64];
 static bitboard *bishop_magic_table_ptr[64];
 
 /**
- * given an occupancy bitboard + square with rook/bishop, generate the index within that square's section of the sliding table */
+ * given an occupancy bitboard + square with rook/bishop, generate the index
+ * within that square's section of the sliding table */
 static uint64_t magic_index_rook(bitboard occupancy, board_pos square) {
-  return ((occupancy & rook_magic_masks[square]) * rook_magic_factors[square])
-    >> (64 - rook_magic_bits[square]);
+  return ((occupancy & rook_magic_masks[square]) *
+          rook_magic_factors[square]) >>
+         (64 - rook_magic_bits[square]);
 }
 
 static uint64_t magic_index_bishop(bitboard occupancy, board_pos square) {
-  return ((occupancy & bishop_magic_masks[square]) * bishop_magic_factors[square])
-    >> (64 - bishop_magic_bits[square]);
+  return ((occupancy & bishop_magic_masks[square]) *
+          bishop_magic_factors[square]) >>
+         (64 - bishop_magic_bits[square]);
 }
 
 /**
  * given an occupancy bitboard, lookup valid moves for a rook/bishop at square
- * because occupancy doesn't distinguish between the players, the result includes capturing all occupied squares
- * to get only valid attacks against the opponent, do (result & ~us_occupancy) */
+ * because occupancy doesn't distinguish between the players, the result
+ * includes capturing all occupied squares
+ * to get only valid attacks against the opponent, do (result & ~us_occupancy)
+ */
 static bitboard rook_move_lookup(bitboard occupancy, board_pos square) {
   assert(square < 64);
   return rook_magic_table_ptr[square][magic_index_rook(occupancy, square)];
@@ -137,43 +147,51 @@ static bitboard bishop_move_lookup(bitboard occupancy, board_pos square) {
 /**
  * lookup valid moves for a queen (just rook | bishop) */
 static bitboard queen_magic_lookup(bitboard occupancy, board_pos square) {
-  return rook_move_lookup(occupancy, square) | bishop_move_lookup(occupancy, square);
+  return rook_move_lookup(occupancy, square) |
+         bishop_move_lookup(occupancy, square);
 }
 
 /**
- * given a bitboard mask, generate all permutations of setting/clearing bits in current that are set in maks
- * call func on each permutation */
-static void permute_mask(bitboard mask, bitboard current, void (*func)(bitboard, board_pos, int),
+ * given a bitboard mask, generate all permutations of setting/clearing bits in
+ * current that are set in maks call func on each permutation */
+static void permute_mask(bitboard mask, bitboard current,
+                         void (*func)(bitboard, board_pos, int),
                          board_pos func_arg0, int func_arg1) {
   if (!mask) {
     func(current, func_arg0, func_arg1);
   } else {
-    // find first set bit in mask, clear it, and generate permutations on current with that bit set + cleared
+    // find first set bit in mask, clear it, and generate permutations on
+    // current with that bit set + cleared
     board_pos set_i = bitboard_scan_lsb(mask);
     bitboard new_mask = bitboard_clear_square(mask, set_i);
-    permute_mask(new_mask, bitboard_set_square(current, set_i), func, func_arg0, func_arg1);
-    permute_mask(new_mask, bitboard_clear_square(current, set_i), func, func_arg0, func_arg1);
+    permute_mask(new_mask, bitboard_set_square(current, set_i), func, func_arg0,
+                 func_arg1);
+    permute_mask(new_mask, bitboard_clear_square(current, set_i), func,
+                 func_arg0, func_arg1);
   }
 }
 
 /**
  * callbacks to be passed to permute_mask
- * for this board occupancy, generate rook/bishop moves and put in sliding_magic_moves lookup table */
-static void move_gen_init_sliders_rook(bitboard occupancy, board_pos pos, int pos_tbl_start) {
+ * for this board occupancy, generate rook/bishop moves and put in
+ * sliding_magic_moves lookup table */
+static void move_gen_init_sliders_rook(bitboard occupancy, board_pos pos,
+                                       int pos_tbl_start) {
   bitboard moves = gen_rook_moves(occupancy, pos);
   uint64_t index = pos_tbl_start + magic_index_rook(occupancy, pos);
   assert(index < SLIDING_TABLE_SIZE);
-  assert(
-    sliding_magic_moves[index] == 0xffffffffffffffffULL || sliding_magic_moves[index] == moves);
+  assert(sliding_magic_moves[index] == 0xffffffffffffffffULL ||
+         sliding_magic_moves[index] == moves);
   sliding_magic_moves[index] = moves;
 }
 
-static void move_gen_init_sliders_bishop(bitboard occupancy, board_pos pos, int pos_tbl_start) {
+static void move_gen_init_sliders_bishop(bitboard occupancy, board_pos pos,
+                                         int pos_tbl_start) {
   bitboard moves = gen_bishop_moves(occupancy, pos);
   uint64_t index = pos_tbl_start + magic_index_bishop(occupancy, pos);
   assert(index < SLIDING_TABLE_SIZE);
-  assert(
-    sliding_magic_moves[index] == 0xffffffffffffffffULL || sliding_magic_moves[index] == moves);
+  assert(sliding_magic_moves[index] == 0xffffffffffffffffULL ||
+         sliding_magic_moves[index] == moves);
   sliding_magic_moves[index] = moves;
 }
 
@@ -184,12 +202,14 @@ static void move_gen_init_sliders() {
   int tbl_index = 0;
   for (board_pos pos = 0; pos < 64; pos++) {
     rook_magic_table_ptr[pos] = sliding_magic_moves + tbl_index;
-    permute_mask(rook_magic_masks[pos], 0, &move_gen_init_sliders_rook, pos, tbl_index);
+    permute_mask(rook_magic_masks[pos], 0, &move_gen_init_sliders_rook, pos,
+                 tbl_index);
     tbl_index += (1 << rook_magic_bits[pos]);
   }
   for (board_pos pos = 0; pos < 64; pos++) {
     bishop_magic_table_ptr[pos] = sliding_magic_moves + tbl_index;
-    permute_mask(bishop_magic_masks[pos], 0, &move_gen_init_sliders_bishop, pos, tbl_index);
+    permute_mask(bishop_magic_masks[pos], 0, &move_gen_init_sliders_bishop, pos,
+                 tbl_index);
     tbl_index += (1 << bishop_magic_bits[pos]);
   }
   assert(tbl_index == SLIDING_TABLE_SIZE);
@@ -214,16 +234,20 @@ static void move_gen_init_pawns() {
           if (!(ahead & 2U) && ahead_present) {
             moves = bitboard_set_square(moves, board_pos_from_xy(x, y + dir));
             // check move two ahead
-            if (!double_ahead && ((player == WHITE && y == 1) || (player == BLACK && y == 6))) {
-              moves = bitboard_set_square(moves, board_pos_from_xy(x, y + 2 * dir));
+            if (!double_ahead &&
+                ((player == WHITE && y == 1) || (player == BLACK && y == 6))) {
+              moves =
+                  bitboard_set_square(moves, board_pos_from_xy(x, y + 2 * dir));
             }
           }
           // check captures
           if (x >= 1 && (ahead & 1U) && ahead_present) {
-            moves = bitboard_set_square(moves, board_pos_from_xy(x - 1, y + dir));
+            moves =
+                bitboard_set_square(moves, board_pos_from_xy(x - 1, y + dir));
           }
           if (x <= 6 && (ahead & 4U) && ahead_present) {
-            moves = bitboard_set_square(moves, board_pos_from_xy(x + 1, y + dir));
+            moves =
+                bitboard_set_square(moves, board_pos_from_xy(x + 1, y + dir));
           }
           // set lookup table
           move_gen_pawns[player][double_ahead][ahead][pos] = moves;
@@ -234,17 +258,20 @@ static void move_gen_init_pawns() {
 }
 
 /**
- * given an occupancy bitboard, lookup valid moves for a pawn on square with color player */
-static bitboard pawn_move_lookup(bitboard occupancy, board_pos square, int player) {
+ * given an occupancy bitboard, lookup valid moves for a pawn on square with
+ * color player */
+static bitboard pawn_move_lookup(bitboard occupancy, board_pos square,
+                                 int player) {
   int dir = player == WHITE ? 1 : -1;
   // get the three squares forward of the pawn, and the square two squares ahead
   int forward_shift = square - 1 + dir * 8;
-  uint8_t forward_rank =
-    forward_shift >= 0 ? (occupancy >> forward_shift) & 0x07 : (occupancy << -forward_shift) & 0x07;
+  uint8_t forward_rank = forward_shift >= 0
+                             ? (occupancy >> forward_shift) & 0x07
+                             : (occupancy << -forward_shift) & 0x07;
   int double_forward_shift = square + dir * 16;
   uint8_t double_forward_rank =
-    double_forward_shift > 0 ? (occupancy >> double_forward_shift) & 0x01 :
-    (occupancy << -double_forward_shift) & 0x01;
+      double_forward_shift > 0 ? (occupancy >> double_forward_shift) & 0x01
+                               : (occupancy << -double_forward_shift) & 0x01;
 
   return move_gen_pawns[player][double_forward_rank][forward_rank][square];
 }
@@ -252,24 +279,24 @@ static bitboard pawn_move_lookup(bitboard occupancy, board_pos square, int playe
 /**
  * generate moves for the piece at the given square on board
  * this is just regular moves -- does not include castles */
-static bitboard
-move_gen_reg_moves_mask(bitboard occupancy_for_sliders, bitboard occupancy_for_pawns, int piece,
-                        int player, board_pos square) {
+static bitboard move_gen_reg_moves_mask(bitboard occupancy_for_sliders,
+                                        bitboard occupancy_for_pawns, int piece,
+                                        int player, board_pos square) {
   switch (piece) {
-    case KING:
-      return move_gen_kings[square];
-    case KNIGHT:
-      return move_gen_knights[square];
-    case PAWN:
-      return pawn_move_lookup(occupancy_for_pawns, square, player);
-    case ROOK:
-      return rook_move_lookup(occupancy_for_sliders, square);
-    case BISHOP:
-      return bishop_move_lookup(occupancy_for_sliders, square);
-    case QUEEN:
-      return queen_magic_lookup(occupancy_for_sliders, square);
-    default:
-      assert(0);
+  case KING:
+    return move_gen_kings[square];
+  case KNIGHT:
+    return move_gen_knights[square];
+  case PAWN:
+    return pawn_move_lookup(occupancy_for_pawns, square, player);
+  case ROOK:
+    return rook_move_lookup(occupancy_for_sliders, square);
+  case BISHOP:
+    return bishop_move_lookup(occupancy_for_sliders, square);
+  case QUEEN:
+    return queen_magic_lookup(occupancy_for_sliders, square);
+  default:
+    assert(0);
   }
 }
 
@@ -282,7 +309,8 @@ static bitboard board_occupancy_for_sliders_lookups(const board *board) {
 static bitboard board_occupancy_for_pawns_lookups(const board *board) {
   bitboard occupancy = board->players[WHITE] | board->players[BLACK];
   if (board->flags & BOARD_FLAGS_EP_PRESENT) {
-    occupancy = bitboard_set_square(occupancy, board->flags & BOARD_FLAGS_EP_SQUARE);
+    occupancy =
+        bitboard_set_square(occupancy, board->flags & BOARD_FLAGS_EP_SQUARE);
   }
   return occupancy;
 }
@@ -307,23 +335,23 @@ void move_gen_init(move_gen *move_gen, board *board) {
   move_gen->hit_move = 0;
 }
 
-#define MOVE_FLAGS_PREV_FLAGS     0x0000000ffffULL
-#define MOVE_FLAGS_SRC            0x000003f0000ULL
-#define MOVE_SHIFT_SRC            16
-#define MOVE_FLAGS_DST            0x0000fc00000ULL
-#define MOVE_SHIFT_DST            22
-#define MOVE_FLAGS_IS_PROMOTE     0x00010000000ULL
-#define MOVE_SHIFT_IS_PROMOTE     28
-#define MOVE_FLAGS_PROMOTE_PIECE  0x000e0000000ULL
-#define MOVE_SHIFT_PROMOTE_PIECE  29
-#define MOVE_FLAGS_IS_CAPTURE     0x00100000000ULL
-#define MOVE_SHIFT_IS_CAPTURE     32
-#define MOVE_FLAGS_CAPTURE_PIECE  0x00e00000000ULL
-#define MOVE_SHIFT_CAPTURE_PIECE  33
+#define MOVE_FLAGS_PREV_FLAGS 0x0000000ffffULL
+#define MOVE_FLAGS_SRC 0x000003f0000ULL
+#define MOVE_SHIFT_SRC 16
+#define MOVE_FLAGS_DST 0x0000fc00000ULL
+#define MOVE_SHIFT_DST 22
+#define MOVE_FLAGS_IS_PROMOTE 0x00010000000ULL
+#define MOVE_SHIFT_IS_PROMOTE 28
+#define MOVE_FLAGS_PROMOTE_PIECE 0x000e0000000ULL
+#define MOVE_SHIFT_PROMOTE_PIECE 29
+#define MOVE_FLAGS_IS_CAPTURE 0x00100000000ULL
+#define MOVE_SHIFT_IS_CAPTURE 32
+#define MOVE_FLAGS_CAPTURE_PIECE 0x00e00000000ULL
+#define MOVE_SHIFT_CAPTURE_PIECE 33
 #define MOVE_FLAGS_CAPTURE_SQUARE 0x3f000000000ULL
 #define MOVE_SHIFT_CAPTURE_SQUARE 36
-#define MOVE_FLAGS_IS_CASTLE      0x40000000000ULL
-#define MOVE_SHIFTS_IS_CASTLE     42
+#define MOVE_FLAGS_IS_CASTLE 0x40000000000ULL
+#define MOVE_SHIFTS_IS_CASTLE 42
 
 board_pos move_source_square(move move) {
   return (move & MOVE_FLAGS_SRC) >> MOVE_SHIFT_SRC;
@@ -344,9 +372,7 @@ int move_promotion_piece(move move) {
     return (move & MOVE_FLAGS_PROMOTE_PIECE) >> MOVE_SHIFT_PROMOTE_PIECE;
 }
 
-int move_is_capture(move move) {
-  return move & MOVE_FLAGS_IS_CAPTURE ? 1 : 0;
-}
+int move_is_capture(move move) { return move & MOVE_FLAGS_IS_CAPTURE ? 1 : 0; }
 
 int move_capture_piece(move move) {
   if (!move_is_capture(move))
@@ -368,23 +394,28 @@ int move_is_castle(move move) {
 
 /**
  * create a move from the given components */
-static move construct_move(uint16_t board_flags, board_pos src, board_pos dst, int is_promotion,
-                           int promote_piece, int is_capture, int capture_piece,
-                           board_pos capture_pos, int is_castle) {
-  return
-    ((uint64_t) board_flags & MOVE_FLAGS_PREV_FLAGS) +
-    (((uint64_t) src << MOVE_SHIFT_SRC) & MOVE_FLAGS_SRC) +
-    (((uint64_t) dst << MOVE_SHIFT_DST) & MOVE_FLAGS_DST) +
-    ((uint64_t) (is_promotion != 0) << MOVE_SHIFT_IS_PROMOTE) +
-    (((uint64_t) promote_piece << MOVE_SHIFT_PROMOTE_PIECE) & MOVE_FLAGS_PROMOTE_PIECE) +
-    ((uint64_t) (is_capture != 0) << MOVE_SHIFT_IS_CAPTURE) +
-    (((uint64_t) capture_piece << MOVE_SHIFT_CAPTURE_PIECE) & MOVE_FLAGS_CAPTURE_PIECE) +
-    (((uint64_t) capture_pos << MOVE_SHIFT_CAPTURE_SQUARE) & MOVE_FLAGS_CAPTURE_SQUARE) +
-    (((uint64_t) (is_castle != 0) << MOVE_SHIFTS_IS_CASTLE) & MOVE_FLAGS_IS_CASTLE);
+static move construct_move(uint16_t board_flags, board_pos src, board_pos dst,
+                           int is_promotion, int promote_piece, int is_capture,
+                           int capture_piece, board_pos capture_pos,
+                           int is_castle) {
+  return ((uint64_t)board_flags & MOVE_FLAGS_PREV_FLAGS) +
+         (((uint64_t)src << MOVE_SHIFT_SRC) & MOVE_FLAGS_SRC) +
+         (((uint64_t)dst << MOVE_SHIFT_DST) & MOVE_FLAGS_DST) +
+         ((uint64_t)(is_promotion != 0) << MOVE_SHIFT_IS_PROMOTE) +
+         (((uint64_t)promote_piece << MOVE_SHIFT_PROMOTE_PIECE) &
+          MOVE_FLAGS_PROMOTE_PIECE) +
+         ((uint64_t)(is_capture != 0) << MOVE_SHIFT_IS_CAPTURE) +
+         (((uint64_t)capture_piece << MOVE_SHIFT_CAPTURE_PIECE) &
+          MOVE_FLAGS_CAPTURE_PIECE) +
+         (((uint64_t)capture_pos << MOVE_SHIFT_CAPTURE_SQUARE) &
+          MOVE_FLAGS_CAPTURE_SQUARE) +
+         (((uint64_t)(is_castle != 0) << MOVE_SHIFTS_IS_CASTLE) &
+          MOVE_FLAGS_IS_CASTLE);
 }
 
 /**
- * given an en passant target square, get the pawn square to which it cooresponds */
+ * given an en passant target square, get the pawn square to which it
+ * cooresponds */
 static board_pos en_passant_target_to_pawn_pos(board_pos ep_target) {
   int x, y;
   board_pos_to_xy(ep_target, &x, &y);
@@ -430,7 +461,7 @@ move move_from_str(const char *move_str, const board *board) {
       if (promote_codes[p] == promote_char)
         promote_piece = p;
     }
-    if(promote_piece == -1) {
+    if (promote_piece == -1) {
       return MOVE_END;
     }
   }
@@ -442,18 +473,20 @@ move move_from_str(const char *move_str, const board *board) {
   board_pos capture_pos = BOARD_POS_INVALID;
   int capture_piece = board_piece_on_square(board, dst);
   if (capture_piece != -1) {
-    if(board_player_on_square(board, dst) == board_player_to_move(board)) {
+    if (board_player_on_square(board, dst) == board_player_to_move(board)) {
       return MOVE_END;
     }
     is_capture = 1;
     capture_pos = dst;
   }
   // check for en passant
-  if (dst == board_get_en_passant_target(board) && board_piece_on_square(board, src) == PAWN) {
+  if (dst == board_get_en_passant_target(board) &&
+      board_piece_on_square(board, src) == PAWN) {
     is_capture = 1;
-    capture_pos = en_passant_target_to_pawn_pos(board_get_en_passant_target(board));
+    capture_pos =
+        en_passant_target_to_pawn_pos(board_get_en_passant_target(board));
     capture_piece = board_piece_on_square(board, capture_pos);
-    if(capture_piece != PAWN) {
+    if (capture_piece != PAWN) {
       return MOVE_END;
     }
   }
@@ -467,11 +500,12 @@ move move_from_str(const char *move_str, const board *board) {
     is_castle = 1;
   }
 
-  return construct_move(board->flags, src, dst, is_promote, promote_piece, is_capture,
-                        capture_piece, capture_pos, is_castle);
+  return construct_move(board->flags, src, dst, is_promote, promote_piece,
+                        is_capture, capture_piece, capture_pos, is_castle);
 }
 
-bitboard board_is_square_attacked(const board *board, board_pos square, int attacking_player) {
+bitboard board_is_square_attacked(const board *board, board_pos square,
+                                  int attacking_player) {
   assert(attacking_player == WHITE || attacking_player == BLACK);
   int defending_player = !attacking_player;
   // hits on attacking pieces
@@ -479,11 +513,13 @@ bitboard board_is_square_attacked(const board *board, board_pos square, int atta
   bitboard attackers_mask = board->players[attacking_player];
   bitboard occ_slide = board_occupancy_for_sliders_lookups(board);
   bitboard occ_pawn = board_occupancy_for_pawns_lookups(board);
-  // in order to find attacks, treat the square as a piece of each type and check the intersection of legal moves and the opponent
+  // in order to find attacks, treat the square as a piece of each type and
+  // check the intersection of legal moves and the opponent
   for (int piece = KING; piece <= KNIGHT; piece++) {
     assert(piece == KING || piece == PAWN || piece == KNIGHT);
     attack_hits |= move_gen_reg_moves_mask(occ_slide, occ_pawn, piece,
-                                           defending_player, square) & (board->pieces[piece]);
+                                           defending_player, square) &
+                   (board->pieces[piece]);
   }
   for (int piece = ROOK; piece <= BISHOP; piece++) {
     assert(piece == ROOK || piece == BISHOP);
@@ -499,9 +535,10 @@ bitboard board_is_square_attacked(const board *board, board_pos square, int atta
  * clear the castling rights for player on piece side for board */
 static void board_clear_castling(board *board, int player, int side) {
   assert(side == QUEEN || side == KING);
-  int flag = player == WHITE ?
-             (side == QUEEN ? BOARD_FLAGS_W_CASTLE_QUEEN : BOARD_FLAGS_W_CASTLE_KING) :
-             (side == QUEEN ? BOARD_FLAGS_B_CASTLE_QUEEN : BOARD_FLAGS_B_CASTLE_KING);
+  int flag = player == WHITE ? (side == QUEEN ? BOARD_FLAGS_W_CASTLE_QUEEN
+                                              : BOARD_FLAGS_W_CASTLE_KING)
+                             : (side == QUEEN ? BOARD_FLAGS_B_CASTLE_QUEEN
+                                              : BOARD_FLAGS_B_CASTLE_KING);
   board->flags &= ~(flag);
 }
 
@@ -523,11 +560,15 @@ static void move_gen_make_castle(board *board, move move) {
   board->players[player] = bitboard_set_square(board->players[player], dst);
   board->pieces[KING] = bitboard_set_square(board->pieces[KING], dst);
   // move rook
-  board_pos rook_src = side == QUEEN ? board_pos_from_xy(0, y) : board_pos_from_xy(7, y);
-  board_pos rook_dst = side == QUEEN ? board_pos_from_xy(3, y) : board_pos_from_xy(5, y);
-  board->players[player] = bitboard_clear_square(board->players[player], rook_src);
+  board_pos rook_src =
+      side == QUEEN ? board_pos_from_xy(0, y) : board_pos_from_xy(7, y);
+  board_pos rook_dst =
+      side == QUEEN ? board_pos_from_xy(3, y) : board_pos_from_xy(5, y);
+  board->players[player] =
+      bitboard_clear_square(board->players[player], rook_src);
   board->pieces[ROOK] = bitboard_clear_square(board->pieces[ROOK], rook_src);
-  board->players[player] = bitboard_set_square(board->players[player], rook_dst);
+  board->players[player] =
+      bitboard_set_square(board->players[player], rook_dst);
   board->pieces[ROOK] = bitboard_set_square(board->pieces[ROOK], rook_dst);
 
   board_clear_castling(board, player, QUEEN);
@@ -548,7 +589,8 @@ void board_make_move(board *board, move move) {
     move_gen_make_castle(board, move);
   } else {
     assert(piece != -1);
-    assert(!bitboard_check_square(board->players[opponent], dst) || move_is_capture(move));
+    assert(!bitboard_check_square(board->players[opponent], dst) ||
+           move_is_capture(move));
     // revoke both sides castling rights if king is moved
     if (piece == KING) {
       board_clear_castling(board, player, KING);
@@ -578,8 +620,10 @@ void board_make_move(board *board, move move) {
       assert(cap_piece != -1);
       assert(cap_square != src);
       assert(board_player_on_square(board, cap_square) != player);
-      board->players[opponent] = bitboard_clear_square(board->players[opponent], cap_square);
-      board->pieces[cap_piece] = bitboard_clear_square(board->pieces[cap_piece], cap_square);
+      board->players[opponent] =
+          bitboard_clear_square(board->players[opponent], cap_square);
+      board->pieces[cap_piece] =
+          bitboard_clear_square(board->pieces[cap_piece], cap_square);
 
       // if rooks are captured on initial squares, revoke castling rights
       if (cap_piece == ROOK) {
@@ -595,7 +639,8 @@ void board_make_move(board *board, move move) {
       }
     }
     // move piece from src to dst and clear src
-    board->pieces[dst_piece] = bitboard_set_square(board->pieces[dst_piece], dst);
+    board->pieces[dst_piece] =
+        bitboard_set_square(board->pieces[dst_piece], dst);
     board->players[player] = bitboard_set_square(board->players[player], dst);
     board->pieces[piece] = bitboard_clear_square(board->pieces[piece], src);
     board->players[player] = bitboard_clear_square(board->players[player], src);
@@ -641,7 +686,8 @@ void board_unmake_move(board *board, move move) {
   int player = board_player_to_move(board);
   int opponent = !player;
   // move dst to src
-  board->pieces[piece_dst] = bitboard_clear_square(board->pieces[piece_dst], dst);
+  board->pieces[piece_dst] =
+      bitboard_clear_square(board->pieces[piece_dst], dst);
   board->players[player] = bitboard_clear_square(board->players[player], dst);
   board->pieces[piece_src] = bitboard_set_square(board->pieces[piece_src], src);
   board->players[player] = bitboard_set_square(board->players[player], src);
@@ -649,8 +695,10 @@ void board_unmake_move(board *board, move move) {
   if (move_is_capture(move)) {
     int cap_piece = move_capture_piece(move);
     int cap_square = move_capture_square(move);
-    board->pieces[cap_piece] = bitboard_set_square(board->pieces[cap_piece], cap_square);
-    board->players[opponent] = bitboard_set_square(board->players[opponent], cap_square);
+    board->pieces[cap_piece] =
+        bitboard_set_square(board->pieces[cap_piece], cap_square);
+    board->players[opponent] =
+        bitboard_set_square(board->players[opponent], cap_square);
   }
   // if castling, move rook back
   if (move_is_castle(move)) {
@@ -661,9 +709,11 @@ void board_unmake_move(board *board, move move) {
     board_pos rook_src = board_pos_from_xy(rook_src_x, rook_y);
     board_pos rook_dst = board_pos_from_xy(rook_dst_x, rook_y);
     // set src and clear dst
-    board->players[player] = bitboard_set_square(board->players[player], rook_src);
+    board->players[player] =
+        bitboard_set_square(board->players[player], rook_src);
     board->pieces[ROOK] = bitboard_set_square(board->pieces[ROOK], rook_src);
-    board->players[player] = bitboard_clear_square(board->players[player], rook_dst);
+    board->players[player] =
+        bitboard_clear_square(board->players[player], rook_dst);
     board->pieces[ROOK] = bitboard_clear_square(board->pieces[ROOK], rook_dst);
   }
   board_invariants(board);
@@ -683,7 +733,8 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
   board_pos dst = bitboard_scan_lsb(generator->cur_moves);
   // check for promotion
   int is_promote = 0;
-  if (generator->cur_piece_type == PAWN && ((dst >> 3) == 0 || (dst >> 3) == 7)) {
+  if (generator->cur_piece_type == PAWN &&
+      ((dst >> 3) == 0 || (dst >> 3) == 7)) {
     is_promote = 1;
   }
   // if promotion, only clear board if all promotions have been generated
@@ -714,8 +765,9 @@ static move move_gen_next_from_cur_moves(move_gen *generator) {
     }
   }
 
-  move res = construct_move(generator->board->flags, generator->cur_square, dst, is_promote,
-                            generator->cur_promotion, is_capture, capture_piece, capture_pos, 0);
+  move res = construct_move(generator->board->flags, generator->cur_square, dst,
+                            is_promote, generator->cur_promotion, is_capture,
+                            capture_piece, capture_pos, 0);
   // move to next promotion type
   if (is_promote) {
     move_gen_next_promote(generator);
@@ -735,7 +787,8 @@ bitboard board_player_in_check(const board *board, int player) {
  * generate the castling move for side, or return MOVE_END if side can't castle
  * if the
  */
-static move move_gen_castle(move_gen *generator, int player, int side, int undo_move) {
+static move move_gen_castle(move_gen *generator, int player, int side,
+                            int undo_move) {
   if (!board_can_castle(generator->board, player, side)) {
     return MOVE_END;
   }
@@ -744,28 +797,32 @@ static move move_gen_castle(move_gen *generator, int player, int side, int undo_
   int dir = side == QUEEN ? -1 : 1;
   // make sure king and rook positions are in expected
   board_pos king = board_pos_from_xy(4, y);
-  board_pos rook = side == QUEEN ? board_pos_from_xy(0, y) : board_pos_from_xy(7, y);
+  board_pos rook =
+      side == QUEEN ? board_pos_from_xy(0, y) : board_pos_from_xy(7, y);
   assert(board_piece_on_square(generator->board, king) == KING);
   assert(board_piece_on_square(generator->board, rook) == ROOK);
   assert(board_player_on_square(generator->board, king) == player);
   assert(board_player_on_square(generator->board, rook) == player);
 
   // check for pieces between king and rook
-  for (int x = board_pos_to_x(king) + dir; x != board_pos_to_x(rook); x += dir) {
-    if (bitboard_check_square(generator->occupancy_for_sliders, board_pos_from_xy(x, y)))
+  for (int x = board_pos_to_x(king) + dir; x != board_pos_to_x(rook);
+       x += dir) {
+    if (bitboard_check_square(generator->occupancy_for_sliders,
+                              board_pos_from_xy(x, y)))
       return MOVE_END;
   }
   // make sure square from king until dest aren't threatened
   int x = board_pos_to_x(king);
   for (int i = 0; i < 3; i++, x += dir) {
-    if (board_is_square_attacked(generator->board, board_pos_from_xy(x, y), !player)) {
+    if (board_is_square_attacked(generator->board, board_pos_from_xy(x, y),
+                                 !player)) {
       return MOVE_END;
     }
   }
 
-  move move = construct_move(generator->board->flags, king,
-                             board_pos_from_xy(board_pos_to_x(king) + 2 * dir, y), 0, 0, 0, 0, 0,
-                             1);
+  move move = construct_move(
+      generator->board->flags, king,
+      board_pos_from_xy(board_pos_to_x(king) + 2 * dir, y), 0, 0, 0, 0, 0, 1);
   // make move if needed
   if (!undo_move) {
     board_make_move(generator->board, move);
@@ -774,9 +831,9 @@ static move move_gen_castle(move_gen *generator, int player, int side, int undo_
   return move;
 }
 
-#define   MOVE_DONE_NORMAL 1
-#define   MOVE_DONE_CHECKMATE 2
-#define   MOVE_DONE_STALEMATE 3
+#define MOVE_DONE_NORMAL 1
+#define MOVE_DONE_CHECKMATE 2
+#define MOVE_DONE_STALEMATE 3
 
 static move move_gen_next(move_gen *generator, int undo_moves) {
   board_invariants(generator->board);
@@ -786,10 +843,10 @@ static move move_gen_next(move_gen *generator, int undo_moves) {
 
   if (generator->cur_mode == MOVE_GEN_MODE_END) {
     // check for checkmate or stalemate
-    if(generator->hit_move) {
+    if (generator->hit_move) {
       generator->done = MOVE_DONE_NORMAL;
     } else {
-      if(board_player_in_check(generator->board, player)) {
+      if (board_player_in_check(generator->board, player)) {
         generator->done = MOVE_DONE_CHECKMATE;
       } else {
         generator->done = MOVE_DONE_STALEMATE;
@@ -844,13 +901,15 @@ static move move_gen_next(move_gen *generator, int undo_moves) {
         return move_gen_next(generator, undo_moves);
       }
     } while (!bitboard_check_square(
-      generator->board->pieces[generator->cur_piece_type] & player_mask, generator->cur_square));
+        generator->board->pieces[generator->cur_piece_type] & player_mask,
+        generator->cur_square));
 
     // generate move mask for the current square and piece type
     generator->cur_moves =
-      move_gen_reg_moves_mask(generator->occupancy_for_sliders, generator->occupancy_for_pawns,
-                              generator->cur_piece_type, player, generator->cur_square) &
-      generator->final_moves_mask;
+        move_gen_reg_moves_mask(
+            generator->occupancy_for_sliders, generator->occupancy_for_pawns,
+            generator->cur_piece_type, player, generator->cur_square) &
+        generator->final_moves_mask;
     return move_gen_next(generator, undo_moves);
   } else {
     assert(0);
@@ -866,16 +925,18 @@ move move_gen_make_next_move(move_gen *generator) {
 }
 
 int move_gen_is_checkmate(move_gen *move_gen) {
-  if(!move_gen->done) {
-    fprintf(stderr, "[chess-util]: error: move_gen_is_checkmate can only be called once the move_gen has been fully exhausted\n");
+  if (!move_gen->done) {
+    fprintf(stderr, "[chess-util]: error: move_gen_is_checkmate can only be "
+                    "called once the move_gen has been fully exhausted\n");
     assert(0);
   }
   return move_gen->done == MOVE_DONE_CHECKMATE;
 }
 
 int move_gen_is_stalemate(move_gen *move_gen) {
-  if(!move_gen->done) {
-    fprintf(stderr, "[chess-util]: error: move_gen_is_stalemate can only be called once the move_gen has been fully exhausted\n");
+  if (!move_gen->done) {
+    fprintf(stderr, "[chess-util]: error: move_gen_is_stalemate can only be "
+                    "called once the move_gen has been fully exhausted\n");
     assert(0);
   }
   return move_gen->done == MOVE_DONE_STALEMATE;
@@ -885,7 +946,8 @@ int board_is_checkmate(board *board) {
   move_gen gen;
   move_gen_init(&gen, board);
   move move;
-  while((move = move_gen_next_move(&gen)) != MOVE_END);
+  while ((move = move_gen_next_move(&gen)) != MOVE_END)
+    ;
   return move_gen_is_checkmate(&gen);
 }
 
@@ -893,38 +955,45 @@ int board_is_stalemate(board *board) {
   move_gen gen;
   move_gen_init(&gen, board);
   move move;
-  while((move = move_gen_next_move(&gen)) != MOVE_END);
+  while ((move = move_gen_next_move(&gen)) != MOVE_END)
+    ;
   return move_gen_is_stalemate(&gen);
 }
 
 int moves_equal(move move0, move move1) {
-  if((move0 & MOVE_FLAGS_PREV_FLAGS) != (move1 & MOVE_FLAGS_PREV_FLAGS))
+  if ((move0 & MOVE_FLAGS_PREV_FLAGS) != (move1 & MOVE_FLAGS_PREV_FLAGS))
     return 0;
 
-  if(move_source_square(move0) != move_source_square(move1) || move_destination_square(move0) != move_destination_square(move1))
+  if (move_source_square(move0) != move_source_square(move1) ||
+      move_destination_square(move0) != move_destination_square(move1))
     return 0;
 
-  if(move_is_promotion(move0) != move_is_promotion(move1) || (move_is_promotion(move0) && move_promotion_piece(move0) != move_promotion_piece(move1)))
+  if (move_is_promotion(move0) != move_is_promotion(move1) ||
+      (move_is_promotion(move0) &&
+       move_promotion_piece(move0) != move_promotion_piece(move1)))
     return 0;
 
-  if(move_is_capture(move0) != move_is_capture(move1) || (move_is_capture(move0) && (move_capture_piece(move0) != move_capture_piece(move1) || move_capture_square(move0) != move_capture_square(move1))))
+  if (move_is_capture(move0) != move_is_capture(move1) ||
+      (move_is_capture(move0) &&
+       (move_capture_piece(move0) != move_capture_piece(move1) ||
+        move_capture_square(move0) != move_capture_square(move1))))
     return 0;
 
-  if(move_is_castle(move0) != move_is_castle(move1))
+  if (move_is_castle(move0) != move_is_castle(move1))
     return 0;
 
   return 1;
 }
 
 int move_is_legal(move move_to_check, board *board) {
-  if(move_to_check == MOVE_END) {
+  if (move_to_check == MOVE_END) {
     return 0;
   }
   move_gen gen;
   move_gen_init(&gen, board);
   move cur;
-  while((cur = move_gen_next_move(&gen)) != MOVE_END) {
-    if(moves_equal(move_to_check, cur))
+  while ((cur = move_gen_next_move(&gen)) != MOVE_END) {
+    if (moves_equal(move_to_check, cur))
       return 1;
   }
 
@@ -932,8 +1001,10 @@ int move_is_legal(move move_to_check, board *board) {
 }
 
 void move_gen_pregenerate() {
+  printf("[chess-util] beginning move generation pre-calculations\n");
   move_gen_init_knights();
   move_gen_init_kings();
   move_gen_init_sliders();
   move_gen_init_pawns();
+  printf("[chess-util] move generation pre-calculations done\n");
 }
