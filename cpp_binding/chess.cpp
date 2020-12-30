@@ -68,6 +68,7 @@ void Bitboard::print() const {
 void Bitboard::prettyPrint() const {
   bitboard_print_pretty(value);
 }
+
 Bitboard Bitboard::fromInternalValue(uint64_t value) { return Bitboard(value); }
 
 bool Move::isEnd() { return move == MOVE_END; }

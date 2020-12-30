@@ -118,12 +118,12 @@ private:
 
 public:
   /**
-   * Check if the bit for a square is set (ie is a 1). Returns true if the bit for the square is set, false otherwise.
+   * Check if the bit for a square is set (ie is a 1). Returns true if the bit for the square is set to 1, false otherwise.
    */
   bool checkSquare(BoardPos pos) const;
 
   /**
-   * Return the total number of bits that are set in the bitboard.
+   * Return the total number of bits that are set to 1 in the bitboard.
    */
   int count() const;
 
@@ -273,7 +273,7 @@ public:
   static Move end();
 
   /**
-   * get the source square for the move (ie where the piece being moved started)
+   * get the source square for the move (ie where the piece being moved starts)
    */
    BoardPos sourceSquare() const;
 
@@ -365,7 +365,7 @@ public:
    * Get the next legal moves that can be made, and make it on the board. If the move generator is out of legal moves, return Move::end().
    *
    * You MUST call Board::unmakeMove before advancing the move generator further.
-   * Calling makeNextMove() is slightly faster than nextMove() if you want to evaluate the effect of the move.
+   * Calling makeNextMove() is slightly faster than calling nextMove() then Board::makeMove() if you want to evaluate the effect of the move.
    */
   Move makeNextMove();
 
@@ -398,7 +398,7 @@ public:
   Board(const std::string& fenString);
 
   /**
-   * Convert the board to a string in FEN.
+   * Convert the board to a string in Forsyth-Edwards Notation (FEN). The halfmove and turn counters will contain fake values (Board doesn't track them).
    */
   std::string toString() const;
 
@@ -408,12 +408,12 @@ public:
   PieceType pieceTypeOnSquare(BoardPos square) const;
 
   /**
-   * Get the player on the given square, or Player::None if no player is on the square.
+   * Get the player that owns the piece on the given square, or Player::None if no piece is on the square.
    */
   Player playerOnSquare(BoardPos square) const;
 
   /**
-   * Get a bitboard with bits set for each square that player has a piece on (of any type).
+   * Get a bitboard with bits set for each square that has a piece on it owned by the given player (of any type).
    */
   Bitboard playerBitboard(Player player) const;
 
@@ -435,7 +435,7 @@ public:
   /**
    * Check if a given square is threatened by attackingPlayer. IE -- if attackingPlayer could capture square on their next turn.
    *
-   * Returns a bitboard with bits set for each piece that is attacking the square.
+   * Returns a bitboard with bits set for each piece that is threatening the square.
    */
   Bitboard squareThreatened(BoardPos square, Player attackingPlayer);
 
@@ -445,7 +445,7 @@ public:
   void makeMove(Move move);
 
   /**
-   * Unmake the given move. The move has to have been just made on this board. This modifies the board.
+   * Unmake the given move. The move to unmake has to have been the most recently made move on the board. This modifies the board.
    */
   void unmakeMove(Move move);
 
@@ -481,7 +481,7 @@ public:
   /**
    * Get the en passant target square, or BoardPos::invalid() if there is no en passant target square.
    *
-   * The en passant target square is the square which a pawn skipped last turn while moving forwards two squares. If a pawn didn't move forward two squares last turn, these is no en passant target.
+   * The en passant target square is the square which a pawn skipped last turn while moving forwards two squares, and is therefore vulnerable to en passant capture. If a pawn didn't move forward two squares last turn, these is no en passant target.
    */
    BoardPos enPassantTarget() const;
 
