@@ -1,4 +1,4 @@
-package main
+package go_chess
 
 // #cgo LDFLAGS: -lchess-util
 // #include <stdlib.h>
@@ -8,7 +8,12 @@ import "C"
 
 import (
 	"fmt"
+	"log"
+	"net/url"
+	"strings"
 	"unsafe"
+
+	"github.com/gorilla/websocket"
 )
 
 // BoardPos represents a position (ie a square) on a chess board.
@@ -381,23 +386,46 @@ func (b *Board) Free() {
 	C.free(unsafe.Pointer(b))
 }
 
+// ConnectToServer establishes a connection to the codekata chess server at the given host and port, sends apikey and name, and goes into a look waiting for the server to request a move. When a move is requested, function will be called, which should return the move to make
+func ConnectToServer(host string, port string, apikey string, name string, function func(*Board) Move) {
+	InitLib()
+	urlPath := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%s", host, port), Path: "/"}
+	conn, _, err := websocket.DefaultDialer.Dial(urlPath.String(), nil)
+	if err != nil {
+		log.Fatal("error connecting to server: ", err)
+	}
+	defer conn.Close()
+
+	errKey := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("apikey %s", apikey)))
+	if errKey != nil {
+		log.Fatal("error sending apikey: ", errKey)
+	}
+	errName := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("name %s", name)))
+	if errName != nil {
+		log.Fatal("error sending name: ", errName)
+	}
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			log.Fatal("error read message:", err)
+		}
+		if strings.HasPrefix(string(message), "position") {
+			boardStr := string(message)[9:]
+			board := BoardFromString(boardStr)
+			move := function(board)
+			board.Free()
+
+			// send move
+			errSend := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("move %s", move.ToString())))
+			if errSend != nil {
+				log.Fatal("error sending move: ", errSend)
+			}
+		}
+	}
+}
+
 // InitLib runs pre calculations needed by the C library
 func InitLib() {
 	C.move_gen_pregenerate()
-}
-
-func main() {
-	InitLib()
-	board := BoardFromString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-	board.Print()
-
-	gen := board.GetMoveGenerator()
-
-	move := gen.NextMove()
-	for move != MoveEnd {
-		fmt.Println(move.ToString())
-
-		move = gen.NextMove()
-	}
-
 }
