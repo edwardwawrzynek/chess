@@ -128,6 +128,10 @@ public:
   int count() const;
 
   /**
+   * Return true if any bits are set to 1 in the bitboard, or false if all bits are 0 */
+  bool hasAnySet() const;
+
+  /**
    * Return the location of the first bit set to 1 in the bitboard, starting at a1 -> b1 -> ... -> h1 -> a2 -> b2 ... -> h8. If no bits are set to 1, the return value is undefined.
    */
   BoardPos firstPosSet() const;

@@ -72,6 +72,11 @@ func (bb Bitboard) Count() int {
 	return int(C.bitboard_popcount(C.bitboard(bb)))
 }
 
+// HasAnySet returns true if the bitboard has any bits that are set to 1, or false if all bits are set to 0
+func (bb Bitboard) HasAnySet() bool {
+	return C.bitboard(bb) != 0
+}
+
 // FirstPosSet returns the location of the first bit set to 1 in the bitboard, starting at a1 -> b1 -> ... -> h1 -> a2 -> b2 -> ... -> h8. If no bits are set to 1, the return value is undefined
 func (bb Bitboard) FirstPosSet() BoardPos {
 	return BoardPos(C.bitboard_scan_lsb(C.bitboard(bb)))

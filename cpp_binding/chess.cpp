@@ -48,6 +48,8 @@ bool Bitboard::checkSquare(BoardPos pos) const { return bitboard_check_square(va
 
 int Bitboard::count() const { return bitboard_popcount(value); }
 
+bool Bitboard::hasAnySet() const { return value != 0; }
+
 BoardPos Bitboard::firstPosSet() const {
   return BoardPos::fromInternalValue(bitboard_scan_lsb(value));
 }
