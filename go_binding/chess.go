@@ -1,11 +1,13 @@
-package chess
+package main
 
 // #cgo LDFLAGS: -lchess-util
 // #include <stdlib.h>
+// #include <string.h>
 // #include "chess-util.h"
 import "C"
 
 import (
+	"fmt"
 	"unsafe"
 )
 
@@ -96,6 +98,31 @@ func (bb Bitboard) PrettyPrint() {
 }
 
 // TODO: binary operations on Bitboard
+
+// And applies a bitwise and (intersection) between lhs and rhs and returns the result
+func (lhs Bitboard) And(rhs Bitboard) Bitboard {
+	return Bitboard(C.bitboard(lhs) & C.bitboard(rhs))
+}
+
+// Or applies a bitwise or (union) between lhs and rhs and returns the result
+func (lhs Bitboard) Or(rhs Bitboard) Bitboard {
+	return Bitboard(C.bitboard(lhs) | C.bitboard(rhs))
+}
+
+// Xor applies a bitwise xor between lhs and rhs and returns the result
+func (lhs Bitboard) Xor(rhs Bitboard) Bitboard {
+	return Bitboard(C.bitboard(lhs) ^ C.bitboard(rhs))
+}
+
+// LeftShift shifts lhs left by rhs places and returns the result
+func (lhs Bitboard) LeftShift(rhs int) Bitboard {
+	return Bitboard(C.bitboard(lhs) << rhs)
+}
+
+// Righthift shifts lhs right by rhs places and returns the result
+func (lhs Bitboard) RightShift(rhs int) Bitboard {
+	return Bitboard(C.bitboard(lhs) >> rhs)
+}
 
 // Player is a player in a chess game (white or black)
 type Player int
@@ -326,4 +353,51 @@ func (b *Board) ToString() string {
 	defer C.free(unsafe.Pointer(cs))
 	C.board_to_fen_str((*C.board)(unsafe.Pointer(b)), cs)
 	return C.GoString(cs)
+}
+
+// BoardFromString constructs a board from a string in Forsyth-Edwards Notation (FEN).
+// Because of limitations with go's gc interlopability with C, the memory backing the board has to be manually allocated and deallocated. When you are done with the board, call Board.Free to release it's memory.
+// Additionally, due to these limitations, you need to call Board.Copy to make a copy of the board (and you need to call Board.Free once you are done with it). Do not dereference and copy the board pointer returned by the method (your program may segfault).
+func BoardFromString(str string) *Board {
+	cs := C.CString(str)
+	defer C.free(unsafe.Pointer(cs))
+	// alloc memory
+	res := C.malloc(C.size_t(unsafe.Sizeof(C.board{})))
+	C.board_from_fen_str((*C.board)(res), cs)
+	return (*Board)(res)
+}
+
+// Copy returns a copy of the given board. Because of limitations with go's gc interlopability with C, the memory backing the board has to be manually allocated and deallocated. When you are done with the board, call Board.Free to release it's memory.
+func (b *Board) Copy() *Board {
+	boardSize := C.size_t(unsafe.Sizeof(C.board{}))
+	res := C.malloc(boardSize)
+	C.memcpy(unsafe.Pointer(res), unsafe.Pointer(b), boardSize)
+	return (*Board)(res)
+}
+
+// Free frees the memory backing a Board pointer. You should only call free on pointers returned by BoardFromString or Board.Copy.
+// After calling free, don't attempt to access the board. Doing so will cause your program to segfault.
+func (b *Board) Free() {
+	C.free(unsafe.Pointer(b))
+}
+
+// InitLib runs pre calculations needed by the C library
+func InitLib() {
+	C.move_gen_pregenerate()
+}
+
+func main() {
+	InitLib()
+	board := BoardFromString("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	board.Print()
+
+	gen := board.GetMoveGenerator()
+
+	move := gen.NextMove()
+	for move != MoveEnd {
+		fmt.Println(move.ToString())
+
+		move = gen.NextMove()
+	}
+
 }

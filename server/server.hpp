@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <vector>
+#include <memory>
 extern "C" {
 #include "chess-util.h"
 }
