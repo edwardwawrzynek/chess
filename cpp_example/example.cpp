@@ -1,5 +1,6 @@
 #include "chess.hpp"
 #include <iostream>
+#include <utility>
 
 using namespace chess;
 
@@ -9,7 +10,7 @@ using namespace chess;
  * This sample implements a very basic minimax
  */
 
-// an value which eval is guaranteed to return less than
+// a value which eval is guaranteed to return less than
 #define EVAL_INFINITY 100000000
 
 // evaluate a board from white's perspective
@@ -32,6 +33,7 @@ int eval(const Board &board) {
 }
 
 // run a minimax on the board and return a pair of (score, best move)
+// color is 1 if white, -1 if black
 std::pair<int, Move> minimax(Board &board, int depth, int color) {
   // if we reached bottom depth, evaluate
   if(depth == 0) {
@@ -51,6 +53,7 @@ std::pair<int, Move> minimax(Board &board, int depth, int color) {
     // makeNextMove() already made the move for us, so we just visit the board
     auto childVisit = minimax(board, depth - 1, -color);
     // we don't care about the best child move, so just get the score
+    // inverted because child score was for opposite color
     auto childScore = -childVisit.first;
 
     if(childScore > value) {
@@ -64,7 +67,7 @@ std::pair<int, Move> minimax(Board &board, int depth, int color) {
     currentMove = moveGenerate.makeNextMove();
   }
 
-  // check for checkmate (score -infinity) or stalemate(score 0)
+  // check for checkmate (score -infinity) or stalemate (score 0)
   if(moveGenerate.isCheckmate()) {
     value = -EVAL_INFINITY;
   } else if(moveGenerate.isStalemate()) {

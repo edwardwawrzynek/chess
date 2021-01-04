@@ -1,0 +1,5 @@
+1. emcc interface.c ../../../chess/lib/src/*.c -I../../../chess/lib/src/ -I../../../chess/lib/include/ -o interface.js -s EXPORTED_FUNCTIONS='["_clib_board_make_move", "_clib_board_legal_moves"]' -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' -s ENVIRONMENT=web -s MODULARIZE=1 -s EXPORT_NAME=clib
+2. add /* eslint-disable */ to the top of interface.js
+3. change line var wasmBinaryFile = 'interface.wasm'; to var wasmBinaryFile = '/interface.wasm';
+4. comment out wasmBinaryFile = locateFile(wasmBinaryFile) line in interface.js
+5. move interface.wasm to /public

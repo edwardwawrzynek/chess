@@ -1,0 +1,208 @@
+body {
+  background-color: #151510;
+  color: white;
+  font-family: monospace;
+  font-size: 1rem;
+  scrollbar-color: #606065 #383c4a;
+  scrollbar-width: thin;
+}
+
+.flex {
+  display: flex;
+}
+
+.gamesRootContainer {
+  height: 100vh;
+  background-color: #2a2a2e;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.gamesContainer {
+  flex: 1 1 auto;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+}
+
+.gameSidebarContainer {
+  flex: 0 1 auto;
+  padding: 0.5rem 1rem 0 1rem;
+  border-left: 1px solid #606065;
+  max-width: 20rem;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+}
+
+.flexExpand {
+  flex: 1 1 auto;
+}
+
+.gameContainer {
+  margin-bottom: 2rem;
+}
+
+.gameTitleContainer {
+  font-size: 1.2rem;
+  margin-bottom: 0.3rem;
+}
+
+.gameTitleLeft {
+  flex: 1 1 auto;
+  text-align: right;
+}
+
+.gameTitleRight {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.gameTitleCenter {
+  margin: 0 0.5rem;
+  flex: 0 0 auto;
+}
+
+.apikey {
+  margin-top: 0.3rem;
+  font-size: 1rem;
+}
+
+.gameBody {
+  flex: 0 1 auto;
+}
+
+.gameMoves {
+  flex: 0 1 auto;
+  margin-left: 1rem;
+  flex-direction: column;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.gameMovesTable {
+  background-color: #383c4a;
+  border-radius: 5px;
+  padding: 0.5rem;
+  flex: 1 1 auto;
+  display: block;
+  min-width: 10rem;
+  overflow-y: scroll;
+  font-size: 0.8rem;
+  max-height: calc(400px - 20px - 20px - 1rem - 20px);
+  scrollbar-width: thin;
+}
+
+.gameStatus {
+  margin-top: 0.5rem;
+  text-align: center;
+  background-color: #383c4a;
+  border-radius: 5px;
+  padding: 0.5rem;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #383c4a; 
+}
+
+::-webkit-scrollbar-thumb {
+  background: #606065; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #808085;
+}
+
+.moveNum {
+  padding-right: 1.5rem;
+  color: #bbb;
+}
+
+.move {
+  padding-right: 1rem;
+}
+
+.fen {
+  font-size: 0.7rem;
+}
+
+.playAs {
+  cursor: pointer;
+  text-decoration: underline;
+  color: #ccc;
+  font-size: 1rem;
+}
+
+.playerName {
+  padding-right: 1rem;
+}
+
+.playersTitle {
+  margin-top: 0.5rem;
+  font-weight: bold;
+  text-align: center;
+}
+
+.playersFormLabel {
+  margin: 0.2rem 0;
+}
+
+input[type=text] {
+  background-color: #383c4a;
+  padding-left: 0.2rem;
+  border: 1px solid #bbb;
+  color: white;
+  font-family: monospace;
+  flex: 1 1 auto;
+}
+
+button {
+  background-color: #383c4a;
+  border: 1px solid #bbb;
+  color: white;
+  margin-left: 0.5rem;
+}
+
+.headerTitle {
+  margin-top: 1rem;
+  font-size: 1.5rem;
+  flex: 1 1 auto;
+}
+
+.header {
+  flex: 0 1 auto;
+  margin-left: 1rem;
+}
+
+.newGame {
+  margin: 1rem;
+}
+
+@media only screen and (max-width: 600px) {
+  .flex {
+    display: block;
+  }
+  .gameTitleContainer {
+    display: flex !important;
+  }
+
+  .formContainer {
+    display: flex !important;
+  }
+
+  .gameMoves {
+    margin-right: 1rem;
+  }
+
+  .gameSidebarContainer {
+    border: 0px;
+    margin: 0 auto;
+    overflow-y: visible;
+  }
+
+  .gamesContainer {
+    overflow-y: visible;
+  }  
+}
