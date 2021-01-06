@@ -114,9 +114,12 @@ class Bitboard {
 private:
   uint64_t value;
 
+public:
+
+  /**
+   * Construct a bitboard from a 64 bitboard value */
   Bitboard(uint64_t value);
 
-public:
   /**
    * Check if the bit for a square is set (ie is a 1). Returns true if the bit for the square is set to 1, false otherwise.
    */

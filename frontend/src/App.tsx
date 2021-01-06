@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Fragment } from 'react';
 import './App.css';
-import Game from './Game';
 import Games from './Games';
 import clibModule from './clib/interface';
 

@@ -40,9 +40,6 @@ impl Display for BoardPos {
 /// A structure with a bit coresponding to each square
 pub struct Bitboard(clib::bitboard);
 
-
-
-
 #[cfg(test)]
 mod tests {
     use crate::BoardPos;

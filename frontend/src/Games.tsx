@@ -1,7 +1,8 @@
 import React, { useEffect, useState, Fragment } from 'react';
 import BoardFENWrapper from './BoardFENWrapper';
+import BitboardInspect from './BitboardInspect';
 
-const API_URL = 'ws://localhost:9001';
+const API_URL = 'ws://192.168.1.15:9001';
 const TOURNAMENT_GAME_ORDERING = false;
 const ALLOW_NEW_GAME = true;
 
@@ -204,6 +205,7 @@ export default function Games(props: GamesProps) {
   const [curApiKey, setCurApiKey] = useState<string | null>(null);
   const [apiLogin, setApiLogin] = useState<string>("");
   const [changeName, setChangeName] = useState<string>("");
+  const [showBitboardConstruct, setShowBitboardConstruct] = useState(false);
 
   useEffect(() => {
     const newSocket = new WebSocket(API_URL);
@@ -442,14 +444,23 @@ export default function Games(props: GamesProps) {
 
   return (
     <div className="gamesRootContainer flex">
+      {showBitboardConstruct && 
+        <BitboardInspect 
+          onClose={() => {setShowBitboardConstruct(false);}}></BitboardInspect>
+      }
       <div className="gamesContainer">
         <div className="header flex">
           <div className="headerTitle">Codekata Chess</div>
+        </div>
+        <div className="header-btns">
           {ALLOW_NEW_GAME && 
-            <button type="button" className="newGame" onClick={() => {
+            <button type="button" className="header-btn" onClick={() => {
               socket?.send("newgame");
             }}>New Game</button>
           }
+          <button type="button" className="header-btn" onClick={() => {
+            setShowBitboardConstruct(true);
+          }}>Bitboard Construction Tool</button>
         </div>
         {gamesElem}
       </div>
