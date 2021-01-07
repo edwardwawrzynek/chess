@@ -577,7 +577,7 @@ static void move_gen_make_castle(board *board, move move) {
 
 void board_make_move(board *board, move move) {
   board_invariants(board);
-  assert(board->flags == (move & MOVE_FLAGS_PREV_FLAGS));
+  assert((board->flags & BOARD_FLAGS_LOW) == (move & MOVE_FLAGS_PREV_FLAGS));
   board_pos src = move_source_square(move);
   board_pos dst = move_destination_square(move);
   int piece = board_piece_on_square(board, src);
@@ -667,6 +667,14 @@ void board_make_move(board *board, move move) {
     board->flags |= (ep_target & BOARD_FLAGS_EP_SQUARE);
   }
 
+  // if player moving is black, inc turn number
+  if(player == BLACK) {
+    int prev_turn = board_get_full_turn_number(board);
+    // clear turn
+    board->flags &= BOARD_FLAGS_LOW;
+    // set turn
+    board -> flags |= ((prev_turn + 1) << BOARD_FLAGS_TURN_NUM_SHIFT) & BOARD_FLAGS_TURN_NUM;
+  }
   // flip player to move
   board->flags ^= BOARD_FLAGS_TURN;
   board_invariants(board);
@@ -675,7 +683,8 @@ void board_make_move(board *board, move move) {
 void board_unmake_move(board *board, move move) {
   board_invariants(board);
   // restore flags
-  board->flags = move & MOVE_FLAGS_PREV_FLAGS;
+  board->flags &= ~BOARD_FLAGS_LOW;
+  board->flags |= move & MOVE_FLAGS_PREV_FLAGS;
   // extract info from moves
   board_pos src = move_source_square(move);
   board_pos dst = move_destination_square(move);
@@ -685,6 +694,16 @@ void board_unmake_move(board *board, move move) {
   // player is the player that made the move
   int player = board_player_to_move(board);
   int opponent = !player;
+
+  // if player making move was black, dec turn number
+  if(player == BLACK) {
+    int prev_turn = board_get_full_turn_number(board);
+    // clear turn
+    board->flags &= BOARD_FLAGS_LOW;
+    // set turn
+    board -> flags |= ((prev_turn - 1) << BOARD_FLAGS_TURN_NUM_SHIFT) & BOARD_FLAGS_TURN_NUM;
+  }
+
   // move dst to src
   board->pieces[piece_dst] =
       bitboard_clear_square(board->pieces[piece_dst], dst);
@@ -785,7 +804,6 @@ bitboard board_player_in_check(const board *board, int player) {
 
 /**
  * generate the castling move for side, or return MOVE_END if side can't castle
- * if the
  */
 static move move_gen_castle(move_gen *generator, int player, int side,
                             int undo_move) {

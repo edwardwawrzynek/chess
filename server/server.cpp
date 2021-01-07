@@ -6,24 +6,24 @@
 #include <uWebSockets/App.h>
 
 Game::Game(Player *white, Player *black, int id)
-    : id(id), white(white), black(black), board(), moves(), finished(false),
+    : id(id), white(white), black(black), board_value(), moves(), finished(false),
       score(0) {
   board_from_fen_str(
-      &board, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+      &board_value, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 }
 
 void Game::make_move(move move) {
   moves.push_back(move);
-  board_make_move(&board, move);
+  board_make_move(&board_value, move);
   // check for end
-  bool checkmate = board_is_checkmate(&board);
-  bool stalemate = board_is_stalemate(&board);
+  bool checkmate = board_is_checkmate(&board_value);
+  bool stalemate = board_is_stalemate(&board_value);
   if (checkmate || stalemate) {
     finished = true;
     if (stalemate) {
       score = 0;
     } else {
-      score = board_player_to_move(&board) == WHITE ? -1 : 1;
+      score = board_player_to_move(&board_value) == WHITE ? -1 : 1;
     }
   }
 }
@@ -35,12 +35,13 @@ int Game::adjust_score_for(Player *player) {
     return -score;
   } else {
     assert(0);
+    return 0;
   }
 }
 
 void Game::serialize(std::ostream &out) {
   char board_str[87];
-  board_to_fen_str(&board, board_str);
+  board_to_fen_str(&board_value, board_str);
   out << "game " << id << ", " << white->id << ", " << black->id << ", "
       << board_str << ",";
   for (move move : moves) {
@@ -58,7 +59,7 @@ void Game::serialize(std::ostream &out) {
 Player *Game::player_to_move() {
   if (finished) {
     return nullptr;
-  } else if (board_player_to_move(&board) == WHITE) {
+  } else if (board_player_to_move(&board_value) == WHITE) {
     return white;
   } else {
     return black;
@@ -198,13 +199,14 @@ std::vector<std::string> parseCommand(std::string_view cmd) {
   }
   while (i < cmd.length() && cmd[i] != '\n' && cmd[i] != '\r') {
     std::string cur;
-    while (cmd[i] != ',' && i < cmd.length() && cmd[i] != '\n' &&
+    while (i < cmd.length() && cmd[i] != ',' && cmd[i] != '\n' &&
            cmd[i] != '\r') {
       cur.push_back(cmd[i]);
       i++;
     }
     res.push_back(cur);
-    while (isspace(cmd[i]) && i < cmd.length() && cmd[i] != '\n' &&
+    i++;
+    while (i < cmd.length() && isspace(cmd[i]) && cmd[i] != '\n' &&
            cmd[i] != '\r') {
       i++;
     }
@@ -221,7 +223,7 @@ void send_player_cur_position(Player *player, uWS::WebSocket<false, true> *ws) {
     if (game->player_to_move() == player) {
       std::ostringstream stream;
       char board_str[87];
-      board_to_fen_str(&game->board, board_str);
+      board_to_fen_str(&game->board_value, board_str);
       stream << "position " << board_str << "\n";
       ws->publish("player" + std::to_string(player->id), stream.str());
     }
@@ -335,8 +337,8 @@ int main() {
                        ws->send("error not player's turn", opCode);
                      } else {
                        // make sure move is legal
-                       move move = move_from_str(cmd[1].c_str(), &game->board);
-                       if (!move_is_legal(move, &game->board)) {
+                       move move = move_from_str(cmd[1].c_str(), &game->board_value);
+                       if (!move_is_legal(move, &game->board_value)) {
                          ws->send("error move is illegal", opCode);
                        } else {
                          game->make_move(move);

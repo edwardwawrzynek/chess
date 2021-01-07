@@ -83,6 +83,8 @@ std::pair<int, Move> minimax(Board &board, int depth, int color) {
 }
 
 Move findMove(Board &board) {
+  std::cout << "---- Board To Make Move On ----" << std::endl;
+  std::cout << board.toString() << std::endl;
   board.print();
 
   int color = board.playerToMove() == Player::White ? 1 : -1;
@@ -93,8 +95,8 @@ Move findMove(Board &board) {
 
 int main(int argc, char *argv[]) {
   if(argc < 5) {
-    std::cerr << "usage: " << argv[0] << " host port apikey name\n";
-    std::cerr << "example: " << argv[0] << " codekatachess.herokuapp.com 80 API_KEY Computer\n";
+    std::cerr << "usage: " << argv[0] << " host port apikey name" << std::endl;
+    std::cerr << "example: " << argv[0] << " codekatachess.herokuapp.com 80 API_KEY Computer" << std::endl;
     return 1;
   }
   auto host = std::string(argv[1]);

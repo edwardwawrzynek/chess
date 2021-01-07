@@ -14,6 +14,7 @@ static inline int __builtin_ctzll(unsigned long long x) {
 #include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int bitboard_popcount(bitboard board) { return __builtin_popcountll(board); }
 
@@ -338,7 +339,28 @@ void board_from_fen_str(board *board, const char *fen_string) {
     board->flags |= board_pos_from_str(square_str) & BOARD_FLAGS_EP_SQUARE;
   }
 
-  // TODO: handle halfmove + turn counters
+  // ignore halfmove
+  while(isspace(*fen_string)) {
+    fen_string++;
+  }
+  while(!isspace(*fen_string)) {
+    fen_string++;
+  }
+  while(isspace(*fen_string)) {
+    fen_string++;
+  }
+  // read turn counter
+  char turn_count_str[6];
+  int turn_count_index = 0;
+  while(*fen_string != '\0' && !isspace(*fen_string) && turn_count_index < 5) {
+    turn_count_str[turn_count_index] = *fen_string;
+    turn_count_index++;
+    fen_string++;
+  }
+  turn_count_str[turn_count_index] = '\0';
+
+  int turn_count = atoi(turn_count_str);
+  board->flags |= (turn_count << BOARD_FLAGS_TURN_NUM_SHIFT) & BOARD_FLAGS_TURN_NUM;
 
   board_invariants(board);
 }
@@ -424,12 +446,15 @@ void board_to_fen_str(const board *board, char *res_str) {
     res_str++;
   }
   *res_str++ = ' ';
-  // TODO: real halfmove + turn counter
+  // fake halfmove counter
   *res_str++ = '0';
   *res_str++ = ' ';
-  *res_str++ = '1';
+  // real full turn counter
+  snprintf(res_str, 4, "%i", board_get_full_turn_number(board));
+}
 
-  *res_str++ = '\0';
+int board_get_full_turn_number(const board *board) {
+  return (board->flags & BOARD_FLAGS_TURN_NUM) >> BOARD_FLAGS_TURN_NUM_SHIFT;
 }
 
 int board_player_to_move(const board *board) {
@@ -469,9 +494,9 @@ static void board_print_flags(const board *board) {
   char ep_str[3];
   board_ep_to_str(board, ep_str);
 
-  printf("move: %s, castling: %s, ep target: %s\n",
+  printf("move: %s, castling: %s, ep target: %s, turn number (full turns): %i\n",
          board->flags & BOARD_FLAGS_TURN ? "black" : "white", castling_str,
-         ep_str);
+         ep_str, board_get_full_turn_number(board));
   printf("=======================\n");
 }
 

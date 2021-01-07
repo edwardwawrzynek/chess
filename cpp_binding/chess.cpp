@@ -200,6 +200,8 @@ Bitboard Board::pieceBitboard(Player player, PieceType piece) const {
   return Bitboard::fromInternalValue(board.players[static_cast<int>(player)] & board.pieces[static_cast<int>(piece)]);
 }
 
+int Board::fullTurnNumber() const { return board_get_full_turn_number(&board); }
+
 void connectToServer(std::string url, const std::string& port, const std::string& apikey, const std::string& name, const std::function<Move(Board &)> &function) {
   move_gen_pregenerate();
 
@@ -231,6 +233,8 @@ void connectToServer(std::string url, const std::string& port, const std::string
         auto move_to_make = function(board);
         // make move
         ws.write(boost::asio::buffer(str(boost::format("move %1%") % move_to_make.toString())));
+      } else if (msg_string.starts_with("error")) {
+        std::cerr << "Error from server: " << msg_string << "\n";
       }
     }
   } catch(std::exception const& e) {

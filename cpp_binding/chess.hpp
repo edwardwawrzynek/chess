@@ -434,6 +434,11 @@ public:
    */
   Player playerToMove() const;
 
+  /*
+   * Get the turn number for the board. The turn number starts at 1 and is incremented when a full turn is made (both players make a move)
+   */
+  int fullTurnNumber() const;
+
   /**
    * Check if the given player is currently in check.
    */

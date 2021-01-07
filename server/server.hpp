@@ -16,7 +16,7 @@ public:
   int id;
   Player *white, *black;
   // current state of the game
-  board board;
+  board board_value;
   // moves previously played
   std::vector<move> moves;
   // if the game is finished

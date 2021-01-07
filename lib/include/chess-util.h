@@ -12,7 +12,7 @@ typedef uint8_t __chess_util_board_pos;
 struct __chess_util_board {
   __chess_util_bitboard players[2];
   __chess_util_bitboard pieces[6];
-  uint16_t flags;
+  uint32_t flags;
 };
 
 typedef uint64_t __chess_util_move;
@@ -154,6 +154,7 @@ board_pos board_pos_from_str(const char *str);
  * - castling rights
  * - en passant target square
  * - player to move
+ * - turn counter
  *
  * Implementation:
  * A bitboard for each player indicating what squares they have pieces on
@@ -178,6 +179,11 @@ board_pos board_pos_from_str(const char *str);
 #define BOARD_FLAGS_B_CASTLE_KING 1024
 #define BOARD_FLAGS_B_CASTLE_QUEEN 2048
 
+#define BOARD_FLAGS_TURN_NUM 0xffff0000
+#define BOARD_FLAGS_TURN_NUM_SHIFT 16
+
+#define BOARD_FLAGS_LOW 0x0000ffff
+
 typedef struct __chess_util_board board;
 
 /**
@@ -190,7 +196,7 @@ void board_from_fen_str(board *board, const char *fen_string);
 
 /**
  * express a board in FEN notation (minus halfmove + turn counters)
- * res_str must have 87 bytes allocated */
+ * res_str must have 90 bytes allocated */
 void board_to_fen_str(const board *board, char *res_str);
 
 /**
@@ -205,6 +211,13 @@ int board_player_on_square(const board *board, board_pos square);
 /**
  * get which player's turn it is for the board */
 int board_player_to_move(const board *board);
+
+/**
+ * get the turn number for the board
+ * each turn represents two halfmoves (ie both white and black moving)
+ * The move counter starts at one, and is incremented after black makes a move
+ */
+int board_get_full_turn_number(const board *board);
 
 /**
  * get the en passant target square for the board, or BOARD_POS_INVALID if there

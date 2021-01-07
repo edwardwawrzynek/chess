@@ -2,9 +2,10 @@ import React, { useEffect, useState, Fragment } from 'react';
 import BoardFENWrapper from './BoardFENWrapper';
 import BitboardInspect from './BitboardInspect';
 
-const API_URL = 'ws://192.168.1.15:9001';
+const API_URL = 'ws://localhost:9001';
 const TOURNAMENT_GAME_ORDERING = false;
 const ALLOW_NEW_GAME = true;
+const ALLOW_LOGIN = true;
 
 type Command = string[];
 
@@ -410,30 +411,43 @@ export default function Games(props: GamesProps) {
   const playerSidebar = (
     <Fragment>
       <div className="currentPlayer">
-          {gamesState.curPlayerId !== null &&
-            <Fragment>
-            Current Player: <br/>
-              <div className="playersTitle">
-                {gamesState.players[gamesState.curPlayerId].name}
-              </div>
-              <div className="playersFormLabel">Change Name:</div>
-              <div className="flex formContainer">
-                <input type="text" value={changeName} onChange={(event) => {setChangeName(event.target.value)}}></input>
-                <button type="button" onClick={(event) => {
-                  socket?.send("name " + changeName);
-                  setChangeName("");
-                }}>Go</button>
-              </div>
-            </Fragment>
-          }
-          <div className="playersFormLabel">Log In With API Key:</div>
-          <div className="flex formContainer">
-            <input type="text" value={apiLogin} onChange={(event) => {setApiLogin(event.target.value)}}></input>
-            <button type="button" onClick={(event) => {
-              playAs(apiLogin);
-              setApiLogin("");
-            }}>Go</button>
-          </div>
+        {ALLOW_LOGIN &&
+          <Fragment>
+            <div className="playersFormLabel">Log In With API Key:</div>
+            <form 
+              className="flex formContainer"
+              onSubmit={(event) => {
+                playAs(apiLogin);
+                setApiLogin("");
+                event.preventDefault();
+              }}
+            >
+              <input type="text" value={apiLogin} onChange={(event) => {setApiLogin(event.target.value)}}></input>
+              <input type="submit" value="Go"></input>
+            </form>
+          </Fragment>
+        }
+        {gamesState.curPlayerId !== null &&
+          <Fragment>
+          <br/>
+          Current Player: <br/>
+            <div className="playersTitle">
+              {gamesState.players[gamesState.curPlayerId].name}
+            </div>
+            <div className="playersFormLabel">Change Name:</div>
+            <form 
+              className="flex formContainer"
+              onSubmit={(event) => {
+                socket?.send("name " + changeName);
+                setChangeName("");
+                event.preventDefault();
+              }}
+            >
+              <input type="text" value={changeName} onChange={(event) => {setChangeName(event.target.value)}}></input>
+              <input type="submit" value="Go"></input>
+            </form>
+          </Fragment>
+        }
         </div>
         <div className="playersTitle">Players</div>
         {players}

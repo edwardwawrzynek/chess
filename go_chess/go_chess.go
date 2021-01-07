@@ -107,8 +107,6 @@ func (bb Bitboard) PrettyPrint() {
 	C.bitboard_print_pretty(C.bitboard(bb))
 }
 
-// TODO: binary operations on Bitboard
-
 // And applies a bitwise and (intersection) between lhs and rhs and returns the result
 func (lhs Bitboard) And(rhs Bitboard) Bitboard {
 	return Bitboard(C.bitboard(lhs) & C.bitboard(rhs))
@@ -293,6 +291,11 @@ func (b *Board) PieceBitboard(player Player, piece PieceType) Bitboard {
 // PlayerToMove returns the player whose turn it is to move
 func (b *Board) PlayerToMove() Player {
 	return Player(C.board_player_to_move((*C.board)(unsafe.Pointer(b))))
+}
+
+// FullTurnNumber returns the turn number for the board. The turn number starts at 1 and is incremented when a full turn is made (both players make a move)
+func (b *Board) FullTurnNumber() int {
+    return int(C.board_get_full_turn_number((*C.board)(unsafe.Pointer(b))))
 }
 
 // PlayerInCheck returns true if the given player is in check
