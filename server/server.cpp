@@ -3,7 +3,61 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <cstdlib>
 #include <uWebSockets/App.h>
+
+GameInfo::GameInfo(): eval(), data() {}
+
+void GameInfo::serialize(std::ostream &out) {
+  out << "eval";
+  for(auto score: eval) {
+    out << " " << score;
+  }
+
+  for(auto& entry: data) {
+    out << "`" << entry.first << " " << entry.second;
+  }
+}
+
+void GameInfo::deserialize_apply(const std::string &in, size_t eval_turn) {
+  size_t i = 0;
+  while(i < in.size()) {
+    std::string key;
+    std::string value;
+
+    while(i < in.size() && isspace(in[i]) && in[i] != '`') {
+      i++;
+    }
+    // read key
+    while(i < in.size() && !isspace(in[i]) && in[i] != '`') {
+      key.push_back(in[i++]);
+    }
+    // skip space
+    while(i < in.size() && isspace(in[i]) && in[i] != '`') {
+      i++;
+    }
+    // read value
+    while(i < in.size() && in[i] != '`') {
+      value.push_back(in[i++]);
+    }
+
+    if(key == "eval") {
+      grow_eval_to(eval_turn);
+      eval[eval_turn - 1] = std::stod(value);
+    } else {
+      data[key] = value;
+    }
+    while(i < in.size() && in[i] == '`') {
+      i++;
+    }
+  }
+}
+
+void GameInfo::grow_eval_to(size_t size) {
+  while(eval.size() < size) {
+    eval.push_back(0);
+  }
+}
 
 Game::Game(Player *white, Player *black, int id)
     : id(id), white(white), black(black), board_value(), moves(), finished(false),
@@ -53,6 +107,10 @@ void Game::serialize(std::ostream &out) {
   if (finished) {
     out << ", " << score;
   }
+  out << ", ";
+  client_info[0].serialize(out);
+  out << ", ";
+  client_info[1].serialize(out);
   out << "\n";
 }
 
@@ -63,6 +121,15 @@ Player *Game::player_to_move() {
     return white;
   } else {
     return black;
+  }
+}
+
+int Game::turn_num_before_last_move() {
+  int prev_move = board_get_full_turn_number(&board_value);
+  if(board_player_to_move(&board_value) == WHITE) {
+    return prev_move - 1;
+  } else {
+    return prev_move;
   }
 }
 
@@ -232,6 +299,12 @@ void send_player_cur_position(Player *player, uWS::WebSocket<false, true> *ws) {
 
 int main() {
   move_gen_pregenerate();
+
+  auto port = 9001;
+  if(std::getenv("PORT") != nullptr) {
+    port = atoi(std::getenv("PORT"));
+  }
+
   /* Keep in mind that uWS::SSLApp({options}) is the same as uWS::App() when
    * compiled without SSL support.
    * You may swap to using uWS:App() if you don't need SSL */
@@ -343,6 +416,8 @@ int main() {
                        } else {
                          game->make_move(move);
                          state.update_cur_games();
+                         game->client_info[0].grow_eval_to(game->turn_num_before_last_move());
+                         game->client_info[1].grow_eval_to(game->turn_num_before_last_move());
                          // send new game positions
                          send_player_cur_position(game->white, ws);
                          send_player_cur_position(game->black, ws);
@@ -353,6 +428,31 @@ int main() {
                          game->serialize(stream);
                          ws->publish("observe", stream.str());
                        }
+                     }
+                   }
+                 }
+                 // command: info info_str
+                 // send client info to server for current player
+                 else if(cmd[0] == "info") {
+                   auto player = ((PerSocketData *)ws->getUserData())->player;
+                   if (player == nullptr) {
+                     ws->send("error not registered as a player (use apikey "
+                              "command)",
+                              opCode);
+                   } else if (cmd.size() < 2) {
+                     ws->send("error expected 1 argument to command info",
+                              opCode);
+                   } else {
+                     Game *game = player->get_cur_game();
+                     if (game == nullptr) {
+                       ws->send("error player has no active games", opCode);
+                     } else {
+                       int player_index = player == game->white ? 0 : 1;
+                       game->client_info[player_index].deserialize_apply(cmd[1], game->turn_num_before_last_move());
+                       // broadcast changes
+                       std::ostringstream stream;
+                       game->serialize(stream);
+                       ws->publish("observe", stream.str());
                      }
                    }
                  }
@@ -388,10 +488,10 @@ int main() {
                [](auto * /*ws*/, int /*code*/, std::string_view /*message*/) {
                  /* You may access ws->getUserData() here */
                }})
-      .listen(9001,
-              [](auto *listen_socket) {
+      .listen(port,
+              [port](auto *listen_socket) {
                 if (listen_socket) {
-                  std::cout << "Listening on port " << 9001 << std::endl;
+                  std::cout << "Listening on port " << port << std::endl;
                 }
               })
       .run();

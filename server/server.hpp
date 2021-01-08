@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <memory>
 extern "C" {
@@ -10,6 +11,22 @@ extern "C" {
 }
 
 class Player;
+
+class GameInfo {
+public:
+  // evaluation history (one entry per turn)
+  std::vector<double> eval;
+  // other data sent by client
+  std::unordered_map<std::string, std::string> data;
+
+  void serialize(std::ostream &out);
+
+  void deserialize_apply(const std::string& in, size_t eval_turn);
+
+  void grow_eval_to(size_t size);
+
+  GameInfo();
+};
 
 class Game {
 public:
@@ -23,6 +40,8 @@ public:
   bool finished;
   // score if game is finished (0 = tie, 1 = white win, -1 = black win)
   int score;
+  // info reported by clients
+  GameInfo client_info[2];
 
   Game(Player *white, Player *black, int id);
 
@@ -32,6 +51,9 @@ public:
   int adjust_score_for(Player *player);
 
   Player *player_to_move();
+
+  // turn number before the most recent move
+  int turn_num_before_last_move();
 
   void serialize(std::ostream &out);
 };

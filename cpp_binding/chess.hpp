@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <functional>
+#include <unordered_map>
 
 extern "C" {
 #ifndef H_CHESS_UTIL_TYPEDEFS_INCL
@@ -506,9 +507,11 @@ public:
 };
 
 /**
- * Connect to a codekata chess server at the given url and port, send apikey and name, and go into a loop waiting for the server to request a move. When a move is requested, function will be called.
+ * Connect to a codekata chess server at the given url and port, send apikey and name, and block until the server requests a move.
+ *
+ * When a move is requested, function will be called. It will be passed the current board, and should return the move to make and a map of debug information to pass to the server (debug info can be empty)
  */
-void connectToServer(std::string url, const std::string& port, const std::string& apikey, const std::string& name, const std::function<Move(Board &)> &function);
+void connectToServer(std::string url, const std::string& port, const std::string& apikey, const std::string& name, const std::function<std::pair<Move, std::unordered_map<std::string, std::string>>(Board &)> &function);
 
 }
 #endif

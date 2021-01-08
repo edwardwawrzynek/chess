@@ -8,10 +8,6 @@ add_executable(perft_test perft_test.c)
 target_link_libraries(perft_test chess-util)
 target_include_directories(perft_test PRIVATE ../lib/include)
 
-add_executable(sample sample.c sample_game.c)
-target_link_libraries(sample chess-util wsclient)
-target_include_directories(sample PRIVATE ../lib/include)
-
 check_ipo_supported(RESULT supported OUTPUT error)
 if (supported)
     message(STATUS "IPO / LTO supported")

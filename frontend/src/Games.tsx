@@ -348,32 +348,41 @@ export default function Games(props: GamesProps) {
         </div>
         <div className="flex">
           <div className="flexExpand"/>
-          <div className="gameBody">
-            <BoardFENWrapper 
-              fen={game.fen}
-              legal_moves={game.legal_moves}
-              size={400}
-              reversed={game.black_id === gamesState.curPlayerId}
-              allow_moves={[game.white_id === gamesState.curPlayerId, game.black_id === gamesState.curPlayerId]}
-              onMove={(move) => {
-                socket?.send("move " + move + "\n");
-              }}/>
-          </div>
-          <div className="gameMoves flex">
-            <table className="gameMovesTable">
-              <tbody>
-                {game.moves.filter((e, i) => i % 2 === 0).map((e, i) => (
-                  <tr key={i}>
-                    <td className="moveNum">{i + 1}.</td>
-                    <td className="move">{game.moves[i * 2]}</td>
-                    {game.moves.length > (i * 2 + 1) &&
-                      <td className="move">{game.moves[i * 2 + 1]}</td>
-                    }
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="gameStatus">{status}</div>
+          <div>
+            <div className="flex">
+              <div className="gameBody">
+                <BoardFENWrapper 
+                  fen={game.fen}
+                  legal_moves={game.legal_moves}
+                  size={400}
+                  reversed={game.black_id === gamesState.curPlayerId}
+                  allow_moves={[game.white_id === gamesState.curPlayerId, game.black_id === gamesState.curPlayerId]}
+                  onMove={(move) => {
+                    socket?.send("move " + move + "\n");
+                  }}/>
+              </div>
+              <div className="gameMoves flex">
+                <table className="gameMovesTable roundedDiv scroll">
+                  <tbody>
+                    {game.moves.filter((e, i) => i % 2 === 0).map((e, i) => (
+                      <tr key={i}>
+                        <td className="moveNum">{i + 1}.</td>
+                        <td className="move">{game.moves[i * 2]}</td>
+                        {game.moves.length > (i * 2 + 1) &&
+                          <td className="move">{game.moves[i * 2 + 1]}</td>
+                        }
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="gameStatus roundedDiv">{status}</div>
+              </div>
+            </div>
+            <div className="flex gameInfo">
+              <div className="gameInfoDiv roundedDiv scroll">
+                Hello<br/>Hello<br/>Hello<br/>Hello<br/>Hello<br/>Hello<br/>
+              </div>
+            </div>
           </div>
           <div className="flexExpand"/>
         </div>

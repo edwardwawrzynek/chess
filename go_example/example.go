@@ -89,7 +89,7 @@ func main() {
 
 	if len(args) < 5 {
 		fmt.Printf("usage: %s host port apikey name\n", args[0])
-		fmt.Printf("example: %s codekatachess.herokuapp.com 80 API_KEY Computer\n", args[0])
+		fmt.Printf("example: %s codekata-chess.herokuapp.com 80 API_KEY Computer\n", args[0])
 		os.Exit(1)
 	}
 
@@ -98,7 +98,7 @@ func main() {
 	apikey := args[3]
 	name := args[4]
 
-	go_chess.ConnectToServer(host, port, apikey, name, func(b *go_chess.Board) go_chess.Move {
+	go_chess.ConnectToServer(host, port, apikey, name, func(b *go_chess.Board) (go_chess.Move, map[string]string) {
 		b.Print()
 		color := 1
 		if b.PlayerToMove() == go_chess.Black {
@@ -107,6 +107,16 @@ func main() {
 
 		score, move := minimax(b, 4, color)
 		fmt.Printf("making move %s, with score %d\n", move.ToString(), score)
-		return move
+
+        // construct debug info to send back to server
+        // we can send any key value pair
+        // the "eval" key is interpreted specially to mean the value we gave the move we are making
+		debugInfo := map[string]string {
+		    "eval": string(score),
+		    "depth": "4",
+		    // add more here
+		}
+
+		return move, debugInfo
 	})
 }

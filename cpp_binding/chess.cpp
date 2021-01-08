@@ -1,5 +1,6 @@
 #include "chess.hpp"
 #include <iostream>
+#include <sstream>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
@@ -202,7 +203,7 @@ Bitboard Board::pieceBitboard(Player player, PieceType piece) const {
 
 int Board::fullTurnNumber() const { return board_get_full_turn_number(&board); }
 
-void connectToServer(std::string url, const std::string& port, const std::string& apikey, const std::string& name, const std::function<Move(Board &)> &function) {
+void connectToServer(std::string url, const std::string& port, const std::string& apikey, const std::string& name, const std::function<std::pair<Move, std::unordered_map<std::string, std::string>>(Board &)> &function) {
   move_gen_pregenerate();
 
   try {
@@ -230,9 +231,18 @@ void connectToServer(std::string url, const std::string& port, const std::string
         std::string fen_board = msg_string.substr(msg_string.find(' ') + 1);
         auto board = Board(fen_board);
         // get move from function
-        auto move_to_make = function(board);
+        auto function_res = function(board);
+        auto move_to_make = function_res.first;
+        auto debug_info = function_res.second;
         // make move
         ws.write(boost::asio::buffer(str(boost::format("move %1%") % move_to_make.toString())));
+        // send debug info
+        std::ostringstream debug_out;
+        debug_out << "info ";
+        for(auto & dentry: debug_info) {
+          debug_out << dentry.first << " " << dentry.second << "`";
+        }
+        ws.write(boost::asio::buffer(debug_out.str()));
       } else if (msg_string.starts_with("error")) {
         std::cerr << "Error from server: " << msg_string << "\n";
       }

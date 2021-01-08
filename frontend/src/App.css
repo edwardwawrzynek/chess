@@ -78,25 +78,32 @@ body {
   margin-bottom: 20px;
 }
 
-.gameMovesTable {
+.roundedDiv {
   background-color: #383c4a;
   border-radius: 5px;
   padding: 0.5rem;
+}
+
+.scroll {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+}
+
+.gameMovesTable {
   flex: 1 1 auto;
   display: block;
   min-width: 10rem;
-  overflow-y: scroll;
   font-size: 0.8rem;
   max-height: calc(400px - 20px - 20px - 1rem - 20px);
-  scrollbar-width: thin;
+}
+
+.gameInfo {
+  max-height: 5rem;
 }
 
 .gameStatus {
   margin-top: 0.5rem;
   text-align: center;
-  background-color: #383c4a;
-  border-radius: 5px;
-  padding: 0.5rem;
 }
 
 ::-webkit-scrollbar {

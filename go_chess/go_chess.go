@@ -394,8 +394,9 @@ func (b *Board) Free() {
 	C.free(unsafe.Pointer(b))
 }
 
-// ConnectToServer establishes a connection to the codekata chess server at the given host and port, sends apikey and name, and goes into a look waiting for the server to request a move. When a move is requested, function will be called, which should return the move to make
-func ConnectToServer(host string, port string, apikey string, name string, function func(*Board) Move) {
+// ConnectToServer establishes a connection to the codekata chess server at the given host and port, sends apikey and name, and blocks until the server requests a move.
+// When a move is requested, function will be called, which should return the move to make, as well as a map containing debug info (which can be empty)
+func ConnectToServer(host string, port string, apikey string, name string, function func(*Board) (Move, map[string]string)) {
 	InitLib()
 	urlPath := url.URL{Scheme: "ws", Host: fmt.Sprintf("%s:%s", host, port), Path: "/"}
 	conn, _, err := websocket.DefaultDialer.Dial(urlPath.String(), nil)
@@ -421,13 +422,22 @@ func ConnectToServer(host string, port string, apikey string, name string, funct
 		if strings.HasPrefix(string(message), "position") {
 			boardStr := string(message)[9:]
 			board := BoardFromString(boardStr)
-			move := function(board)
+			move, debugInfo := function(board)
 			board.Free()
 
 			// send move
 			errSend := conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("move %s", move.ToString())))
 			if errSend != nil {
 				log.Fatal("error sending move: ", errSend)
+			}
+			// send debug info
+			debugStr := "info "
+			for key, value := range debugInfo {
+			    debugStr += key + " " + value + "`"
+			}
+			errInfo := conn.WriteMessage(websocket.TextMessage, []byte(debugStr))
+			if errInfo != nil {
+			    log.Fatal("error sending info: ", errInfo)
 			}
 		}
 	}

@@ -1,8 +1,12 @@
 #include "chess.hpp"
 #include <iostream>
 #include <utility>
+#include <unordered_map>
 
 using namespace chess;
+extern "C" {
+#include "chess-util.h"
+}
 
 /**
  * Sample C++ Codekata Chess Client
@@ -82,21 +86,31 @@ std::pair<int, Move> minimax(Board &board, int depth, int color) {
   return std::pair(value, bestMove);
 }
 
-Move findMove(Board &board) {
+std::pair<Move, std::unordered_map<std::string, std::string>> findMove(Board &board) {
   std::cout << "---- Board To Make Move On ----" << std::endl;
   std::cout << board.toString() << std::endl;
   board.print();
 
   int color = board.playerToMove() == Player::White ? 1 : -1;
   auto minimaxRes = minimax(board, 4, color);
-  std::cout << "making move: " << minimaxRes.second.toString() << ", with score " << minimaxRes.first << "\n";
-  return minimaxRes.second;
+  std::cout << "making move: " << minimaxRes.second.toString() << ", with score " << minimaxRes.first << std::endl;
+
+  // construct debug info to send back to server
+  // we can send any key value pair
+  // the "eval" key is interpreted specially to mean the value we gave the move we are making
+  std::unordered_map<std::string, std::string> debug_info {
+      {"eval", std::to_string(minimaxRes.first)},
+      {"depth", "4"},
+      // add more here
+  };
+
+  return std::pair(minimaxRes.second, std::move(debug_info));
 }
 
 int main(int argc, char *argv[]) {
   if(argc < 5) {
     std::cerr << "usage: " << argv[0] << " host port apikey name" << std::endl;
-    std::cerr << "example: " << argv[0] << " codekatachess.herokuapp.com 80 API_KEY Computer" << std::endl;
+    std::cerr << "example: " << argv[0] << " codekata-chess.herokuapp.com 80 API_KEY Computer" << std::endl;
     return 1;
   }
   auto host = std::string(argv[1]);
