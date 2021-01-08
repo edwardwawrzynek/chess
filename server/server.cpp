@@ -43,7 +43,11 @@ void GameInfo::deserialize_apply(const std::string &in, size_t eval_turn) {
 
     if(key == "eval") {
       grow_eval_to(eval_turn);
-      eval[eval_turn - 1] = std::stod(value);
+      try {
+        eval[eval_turn - 1] = std::stod(value);
+      } catch (std::invalid_argument& e) {
+        eval[eval_turn - 1] = 0.0;
+      }
     } else {
       data[key] = value;
     }
@@ -104,9 +108,7 @@ void Game::serialize(std::ostream &out) {
     out << " " << move_str;
   }
   out << ", " << finished;
-  if (finished) {
-    out << ", " << score;
-  }
+  out << ", " << score;
   out << ", ";
   client_info[0].serialize(out);
   out << ", ";

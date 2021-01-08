@@ -55,6 +55,7 @@ interface Game {
   finished: boolean,
   score: number,
   legal_moves: string[],
+  client_data: [{[key: string]: string}, {[key: string]: string}]
 }
 
 class GamesState {
@@ -97,13 +98,23 @@ class GamesState {
     );
   }
 
+  private parseClientData(str: string): {[key: string]: string} {
+    let res: {[key: string]: string} = {};
+    str.split("`").forEach((sec) => {
+      const key = sec.split(" ")[0];
+      const value = sec.substr(sec.indexOf(" ") + 1);
+      res[key] = value;
+    });
+    return res;
+  }
+
   private runCmdGame(cmd: Command, clib: any): GamesState {
     const id = Number(cmd[1]);
     // find legal moves
     // TODO: only find legal moves if required by curPlayerId
     const fen = cmd[4];
     const legal_moves = clib.ccall("clib_board_legal_moves", "string", ["string"], [fen]).split(",");
-    let game = {
+    let game: Game = {
       id: id,
       white_id: Number(cmd[2]),
       black_id: Number(cmd[3]),
@@ -112,6 +123,7 @@ class GamesState {
       legal_moves: legal_moves,
       finished: cmd[6] === "1" ? true : false,
       score: cmd.length >= 7 ? Number(cmd[7]) : 0,
+      client_data: [this.parseClientData(cmd[8]), this.parseClientData(cmd[9])]
     };
 
     return new GamesState(
@@ -378,11 +390,29 @@ export default function Games(props: GamesProps) {
                 <div className="gameStatus roundedDiv">{status}</div>
               </div>
             </div>
-            <div className="flex gameInfo">
-              <div className="gameInfoDiv roundedDiv scroll">
-                Hello<br/>Hello<br/>Hello<br/>Hello<br/>Hello<br/>Hello<br/>
-              </div>
-            </div>
+            {game.client_data.map((data: {[key: string]: string}) => {
+              const body = []
+              for(const [key, value] of Object.entries(data)) {
+                //if(key === "eval") continue;
+                body.push(
+                  <tr>
+                    <td className="playerName">{key}</td>
+                    <td>{value}</td>
+                  </tr>
+                );
+              }
+              return (
+                <div className="flex gameInfo">
+                  <div className="gameInfoDiv roundedDiv scroll">
+                    <table>
+                      <tbody>
+                        {body}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <div className="flexExpand"/>
         </div>

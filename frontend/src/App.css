@@ -99,6 +99,12 @@ body {
 
 .gameInfo {
   max-height: 5rem;
+  font-size: 0.7rem;
+  margin-bottom: 0.3rem;
+}
+
+.gameInfoDiv {
+  padding: 0.3rem;
 }
 
 .gameStatus {

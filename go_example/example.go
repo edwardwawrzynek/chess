@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/edwardwawrzynek/chess/go_chess"
 )
@@ -112,7 +113,7 @@ func main() {
         // we can send any key value pair
         // the "eval" key is interpreted specially to mean the value we gave the move we are making
 		debugInfo := map[string]string {
-		    "eval": string(score),
+		    "eval": strconv.Itoa(score),
 		    "depth": "4",
 		    // add more here
 		}
