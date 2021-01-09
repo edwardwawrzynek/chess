@@ -1,10 +1,14 @@
-#include "server.hpp"
 #include <random>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <cstdlib>
 #include <uWebSockets/App.h>
+
+#include "AsyncFileReader.hpp"
+#include "AsyncFileStreamer.hpp"
+#include "Middleware.hpp"
+#include "server.hpp"
 
 GameInfo::GameInfo(): eval(), data() {}
 
@@ -299,8 +303,14 @@ void send_player_cur_position(Player *player, uWS::WebSocket<false, true> *ws) {
   }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   move_gen_pregenerate();
+
+  if(argc != 2) {
+    std::cerr << "usage: " << argv[0] << " http_root" << std::endl;
+    return 1;
+  }
+  AsyncFileStreamer asyncFileStreamer(argv[1]);
 
   auto port = 9001;
   if(std::getenv("PORT") != nullptr) {
@@ -490,7 +500,11 @@ int main() {
                [](auto * /*ws*/, int /*code*/, std::string_view /*message*/) {
                  /* You may access ws->getUserData() here */
                }})
-      .listen(port,
+      .get("/*", [&asyncFileStreamer](auto *res, auto *req) {
+        // act as http server for frontend
+        serveFile(res, req);
+        asyncFileStreamer.streamFile(res, req->getUrl());
+      }).listen(port,
               [port](auto *listen_socket) {
                 if (listen_socket) {
                   std::cout << "Listening on port " << port << std::endl;
