@@ -2,7 +2,7 @@ import React, { useEffect, useState, Fragment } from 'react';
 import BoardFENWrapper from './BoardFENWrapper';
 import BitboardInspect from './BitboardInspect';
 
-const API_URL = 'ws://localhost:9001';
+const API_URL = process.env.NODE_ENV === "development" ? 'ws://localhost:9001' : 'ws://codekata-chess.herokuapp.com:80';
 const TOURNAMENT_GAME_ORDERING = false;
 const ALLOW_NEW_GAME = true;
 const ALLOW_LOGIN = true;
