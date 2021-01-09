@@ -6,7 +6,9 @@ set_target_properties(chess-util PROPERTIES VERSION 0.1 SOVERSION 1 PUBLIC_HEADE
 target_include_directories(chess-util PRIVATE src/ include/)
 install(TARGETS chess-util
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        COMPONENT chess-util
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT chess-util)
 
 check_ipo_supported(RESULT supported OUTPUT error)
 if (supported)
