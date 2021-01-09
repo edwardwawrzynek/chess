@@ -36,6 +36,8 @@ struct __chess_util_move_gen {
 #endif
 }
 
+/*! \file */
+
 namespace chess {
 
 /**
@@ -435,7 +437,7 @@ public:
    */
   Player playerToMove() const;
 
-  /*
+  /**
    * Get the turn number for the board. The turn number starts at 1 and is incremented when a full turn is made (both players make a move)
    */
   int fullTurnNumber() const;
@@ -498,7 +500,8 @@ public:
    */
    BoardPos enPassantTarget() const;
 
-   /* Check if the player has castling rights on side. side should be either PieceType::King or PieceType::Queen. Having castling rights does not mean the player can castle -- rather, it means only they have not moved their king and rook */
+   /**
+    * Check if the player has castling rights on side. side should be either PieceType::King or PieceType::Queen. Having castling rights does not mean the player can castle -- rather, it means only they have not moved their king and rook */
    bool hasCastlingRights(Player player, PieceType side) const;
 
    struct __chess_util_board * getInternalValue();

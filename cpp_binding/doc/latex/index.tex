@@ -1,0 +1,20 @@
+\label{index_md_cpp_binding_README}%
+\Hypertarget{index_md_cpp_binding_README}%
+The c++ bindings\+:
+\begin{DoxyItemize}
+\item handles interaction with the codekata chess server
+\item provides classes to represent chess boards, pieces, and moves
+\item provides very fast legal move generation and application
+\end{DoxyItemize}
+
+The major components are\+:
+\begin{DoxyItemize}
+\item {\ttfamily \mbox{\hyperlink{classchess_1_1Board}{chess\+::\+Board}}}\+: Represents the state of a chess game
+\item {\ttfamily \mbox{\hyperlink{classchess_1_1BoardPos}{chess\+::\+Board\+Pos}}}\+: A position (square) on a chess board
+\item {\ttfamily chess\+::\+Player} \+: Player type (white or black)
+\item {\ttfamily chess\+::\+Piece\+Type}\+: Piece type (pawn, rook, knight, etc)
+\item {\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{chess\+::\+Bitboard}}}\+: Contains a single bit for each square on a chess board. Represents something about a each square (such as where white has pawns).
+\item {\ttfamily \mbox{\hyperlink{classchess_1_1Move}{chess\+::\+Move}}}\+: A single player\textquotesingle{}s move that can be applied to a board
+\item {\ttfamily \mbox{\hyperlink{classchess_1_1MoveGenerator}{chess\+::\+Move\+Generator}}}\+: An iterator over all the legal moves that can be played on a board
+\item {\ttfamily \mbox{\hyperlink{chess_8hpp_a3220f6624c3f51e4a824034c46c9680c}{chess\+::connect\+To\+Server()}}}\+: A function that connects to a codekata chess server, and calls the passed function whenever a move needs to be made 
+\end{DoxyItemize}

@@ -1,0 +1,69 @@
+\hypertarget{classchess_1_1MoveGenerator}{}\doxysection{chess\+::Move\+Generator Class Reference}
+\label{classchess_1_1MoveGenerator}\index{chess::MoveGenerator@{chess::MoveGenerator}}
+
+
+{\ttfamily \#include $<$chess.\+hpp$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classchess_1_1MoveGenerator_a2ce5bb02fefb94d71e49db69c989409b}{Move\+Generator}} (\mbox{\hyperlink{classchess_1_1Board}{Board}} \&board)
+\item 
+\mbox{\hyperlink{classchess_1_1Move}{Move}} \mbox{\hyperlink{classchess_1_1MoveGenerator_a5913d5ac2eef1953089bfab2e47f2ce4}{next\+Move}} ()
+\item 
+\mbox{\hyperlink{classchess_1_1Move}{Move}} \mbox{\hyperlink{classchess_1_1MoveGenerator_a62553d4759a2f5a326501748dde695ab}{make\+Next\+Move}} ()
+\item 
+bool \mbox{\hyperlink{classchess_1_1MoveGenerator_a0b6e91971319be8c5fd9fa4c9a09584d}{is\+Checkmate}} ()
+\item 
+bool \mbox{\hyperlink{classchess_1_1MoveGenerator_aee070a4796ffe520a6a49b8fbc58cbbd}{is\+Stalemate}} ()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+A class that iterates through all of the legal moves that can be made on a board. 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classchess_1_1MoveGenerator_a2ce5bb02fefb94d71e49db69c989409b}\label{classchess_1_1MoveGenerator_a2ce5bb02fefb94d71e49db69c989409b}} 
+\index{chess::MoveGenerator@{chess::MoveGenerator}!MoveGenerator@{MoveGenerator}}
+\index{MoveGenerator@{MoveGenerator}!chess::MoveGenerator@{chess::MoveGenerator}}
+\doxysubsubsection{\texorpdfstring{MoveGenerator()}{MoveGenerator()}}
+{\footnotesize\ttfamily chess\+::\+Move\+Generator\+::\+Move\+Generator (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1Board}{Board}} \&}]{board }\end{DoxyParamCaption})}
+
+Construct a move generator to iterate through the legal moves for board 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classchess_1_1MoveGenerator_a0b6e91971319be8c5fd9fa4c9a09584d}\label{classchess_1_1MoveGenerator_a0b6e91971319be8c5fd9fa4c9a09584d}} 
+\index{chess::MoveGenerator@{chess::MoveGenerator}!isCheckmate@{isCheckmate}}
+\index{isCheckmate@{isCheckmate}!chess::MoveGenerator@{chess::MoveGenerator}}
+\doxysubsubsection{\texorpdfstring{isCheckmate()}{isCheckmate()}}
+{\footnotesize\ttfamily bool chess\+::\+Move\+Generator\+::is\+Checkmate (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Check if the player to move on the board is in checkmate.
+
+You can only call this once the move generator has been exhausted (once next\+Move or make\+Next\+Move has returned \mbox{\hyperlink{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}{Move\+::end()}}). \mbox{\Hypertarget{classchess_1_1MoveGenerator_aee070a4796ffe520a6a49b8fbc58cbbd}\label{classchess_1_1MoveGenerator_aee070a4796ffe520a6a49b8fbc58cbbd}} 
+\index{chess::MoveGenerator@{chess::MoveGenerator}!isStalemate@{isStalemate}}
+\index{isStalemate@{isStalemate}!chess::MoveGenerator@{chess::MoveGenerator}}
+\doxysubsubsection{\texorpdfstring{isStalemate()}{isStalemate()}}
+{\footnotesize\ttfamily bool chess\+::\+Move\+Generator\+::is\+Stalemate (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Check if the player to move on the board is in stalemate.
+
+You can only call this once the move generator has been exhausted (once next\+Move or make\+Next\+Move has returned \mbox{\hyperlink{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}{Move\+::end()}}). \mbox{\Hypertarget{classchess_1_1MoveGenerator_a62553d4759a2f5a326501748dde695ab}\label{classchess_1_1MoveGenerator_a62553d4759a2f5a326501748dde695ab}} 
+\index{chess::MoveGenerator@{chess::MoveGenerator}!makeNextMove@{makeNextMove}}
+\index{makeNextMove@{makeNextMove}!chess::MoveGenerator@{chess::MoveGenerator}}
+\doxysubsubsection{\texorpdfstring{makeNextMove()}{makeNextMove()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Move}{Move}} chess\+::\+Move\+Generator\+::make\+Next\+Move (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Get the next legal moves that can be made, and make it on the board. If the move generator is out of legal moves, return \mbox{\hyperlink{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}{Move\+::end()}}.
+
+You M\+U\+ST call \mbox{\hyperlink{classchess_1_1Board_aa44158b43be5ba5aef62497082c4e3d9}{Board\+::unmake\+Move}} before advancing the move generator further. Calling \mbox{\hyperlink{classchess_1_1MoveGenerator_a62553d4759a2f5a326501748dde695ab}{make\+Next\+Move()}} is slightly faster than calling \mbox{\hyperlink{classchess_1_1MoveGenerator_a5913d5ac2eef1953089bfab2e47f2ce4}{next\+Move()}} then \mbox{\hyperlink{classchess_1_1Board_a73313bc49e34b1c8efef73cba9d686c5}{Board\+::make\+Move()}} if you want to evaluate the effect of the move. \mbox{\Hypertarget{classchess_1_1MoveGenerator_a5913d5ac2eef1953089bfab2e47f2ce4}\label{classchess_1_1MoveGenerator_a5913d5ac2eef1953089bfab2e47f2ce4}} 
+\index{chess::MoveGenerator@{chess::MoveGenerator}!nextMove@{nextMove}}
+\index{nextMove@{nextMove}!chess::MoveGenerator@{chess::MoveGenerator}}
+\doxysubsubsection{\texorpdfstring{nextMove()}{nextMove()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Move}{Move}} chess\+::\+Move\+Generator\+::next\+Move (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Get the next legal moves that can be made. If the move generator is out of legal moves, return \mbox{\hyperlink{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}{Move\+::end()}}. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+cpp\+\_\+binding/\mbox{\hyperlink{chess_8hpp}{chess.\+hpp}}\end{DoxyCompactItemize}

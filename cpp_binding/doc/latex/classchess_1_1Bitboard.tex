@@ -1,0 +1,154 @@
+\hypertarget{classchess_1_1Bitboard}{}\doxysection{chess\+::Bitboard Class Reference}
+\label{classchess_1_1Bitboard}\index{chess::Bitboard@{chess::Bitboard}}
+
+
+{\ttfamily \#include $<$chess.\+hpp$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard_a2f0404a980658e79a500ac85addd3a32}{Bitboard}} (uint64\+\_\+t value)
+\item 
+bool \mbox{\hyperlink{classchess_1_1Bitboard_ad68c46b6bd825765b31927ddefbee07f}{check\+Square}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} pos) const
+\item 
+int \mbox{\hyperlink{classchess_1_1Bitboard_abb73c0d5e53205d101b7b0c1cbb77dac}{count}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1Bitboard_af0a635c4b11ee26f39f80f6f48e613a1}{has\+Any\+Set}} () const
+\item 
+\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1Bitboard_afca18c04b0d40b5d76e460cbb2ad1d33}{first\+Pos\+Set}} () const
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \mbox{\hyperlink{classchess_1_1Bitboard_a81f260a520ceab2975a7792a336e33cc}{with\+Pos\+Set}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} pos\+To\+Set) const
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \mbox{\hyperlink{classchess_1_1Bitboard_a013f4867515ad3987b719ac7d7921d98}{with\+Pos\+Clear}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} pos\+To\+Clear) const
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \mbox{\hyperlink{classchess_1_1Bitboard_a582db5f7a59ae914e5ac7c9469a8a8f9}{with\+Pos\+Flipped}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} pos\+To\+Flip) const
+\item 
+uint64\+\_\+t \mbox{\hyperlink{classchess_1_1Bitboard_a0cf8894eef981acabf591ff692bd2284}{get\+Internal\+Value}} () const
+\item 
+void \mbox{\hyperlink{classchess_1_1Bitboard_a3dcc81c41900b8a1852199b3273cad75}{print}} () const
+\item 
+void \mbox{\hyperlink{classchess_1_1Bitboard_a6cbaf9393b0798b6582435ccef3f9ef2}{pretty\+Print}} () const
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_a3e0d6234bb7387c380441526e6d8cded}\label{classchess_1_1Bitboard_a3e0d6234bb7387c380441526e6d8cded}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \& {\bfseries operator\&=} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_ac0ebe69d9e4f8f291f52d96976e0947e}\label{classchess_1_1Bitboard_ac0ebe69d9e4f8f291f52d96976e0947e}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \& {\bfseries operator$\vert$=} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_aae35f6be032108704f4b0b739ba9a7ac}\label{classchess_1_1Bitboard_aae35f6be032108704f4b0b739ba9a7ac}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \& {\bfseries operator$^\wedge$=} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_ae8e0630502aaf78fcbd94d4aab93f191}\label{classchess_1_1Bitboard_ae8e0630502aaf78fcbd94d4aab93f191}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \& {\bfseries operator$>$$>$=} (int rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_a4274ec072d48d97034226e4702ee8d6d}\label{classchess_1_1Bitboard_a4274ec072d48d97034226e4702ee8d6d}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \& {\bfseries operator$<$$<$=} (int rhs)
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_a9b46b32c2884cfe7e1741c7ad02b4080}\label{classchess_1_1Bitboard_a9b46b32c2884cfe7e1741c7ad02b4080}} 
+static \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} {\bfseries from\+Internal\+Value} (uint64\+\_\+t value)
+\end{DoxyCompactItemize}
+\doxysubsection*{Friends}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_af52a783992685322ccc973e02550ec96}\label{classchess_1_1Bitboard_af52a783992685322ccc973e02550ec96}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} {\bfseries operator\&} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} lhs, \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_ae2a9db1f93c204a5b972f7ba6b24bda3}\label{classchess_1_1Bitboard_ae2a9db1f93c204a5b972f7ba6b24bda3}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} {\bfseries operator$\vert$} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} lhs, \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_aed5e236795fbe0a5a2de40d18a2ae8a1}\label{classchess_1_1Bitboard_aed5e236795fbe0a5a2de40d18a2ae8a1}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} {\bfseries operator$^\wedge$} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} lhs, \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_acbf2e806a9c537ee257c85856d176c42}\label{classchess_1_1Bitboard_acbf2e806a9c537ee257c85856d176c42}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} {\bfseries operator$>$$>$} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} lhs, int rhs)
+\item 
+\mbox{\Hypertarget{classchess_1_1Bitboard_a2bf7b188ec607b45e3d0b139cc9e3b6c}\label{classchess_1_1Bitboard_a2bf7b188ec607b45e3d0b139cc9e3b6c}} 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} {\bfseries operator$<$$<$} (\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} lhs, int rhs)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+A bitboard is a data structure that maps each position on a chessboard to a single bit of information. IE -- It contains either a 1 or 0 for each square on the board.
+
+A bitboard does not represent the state of a game -- it represents one aspect about that game for each square. 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classchess_1_1Bitboard_a2f0404a980658e79a500ac85addd3a32}\label{classchess_1_1Bitboard_a2f0404a980658e79a500ac85addd3a32}} 
+\index{chess::Bitboard@{chess::Bitboard}!Bitboard@{Bitboard}}
+\index{Bitboard@{Bitboard}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{Bitboard()}{Bitboard()}}
+{\footnotesize\ttfamily chess\+::\+Bitboard\+::\+Bitboard (\begin{DoxyParamCaption}\item[{uint64\+\_\+t}]{value }\end{DoxyParamCaption})}
+
+Construct a bitboard from a 64 bitboard value 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classchess_1_1Bitboard_ad68c46b6bd825765b31927ddefbee07f}\label{classchess_1_1Bitboard_ad68c46b6bd825765b31927ddefbee07f}} 
+\index{chess::Bitboard@{chess::Bitboard}!checkSquare@{checkSquare}}
+\index{checkSquare@{checkSquare}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{checkSquare()}{checkSquare()}}
+{\footnotesize\ttfamily bool chess\+::\+Bitboard\+::check\+Square (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{pos }\end{DoxyParamCaption}) const}
+
+Check if the bit for a square is set (ie is a 1). Returns true if the bit for the square is set to 1, false otherwise. \mbox{\Hypertarget{classchess_1_1Bitboard_abb73c0d5e53205d101b7b0c1cbb77dac}\label{classchess_1_1Bitboard_abb73c0d5e53205d101b7b0c1cbb77dac}} 
+\index{chess::Bitboard@{chess::Bitboard}!count@{count}}
+\index{count@{count}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{count()}{count()}}
+{\footnotesize\ttfamily int chess\+::\+Bitboard\+::count (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Return the total number of bits that are set to 1 in the bitboard. \mbox{\Hypertarget{classchess_1_1Bitboard_afca18c04b0d40b5d76e460cbb2ad1d33}\label{classchess_1_1Bitboard_afca18c04b0d40b5d76e460cbb2ad1d33}} 
+\index{chess::Bitboard@{chess::Bitboard}!firstPosSet@{firstPosSet}}
+\index{firstPosSet@{firstPosSet}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{firstPosSet()}{firstPosSet()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Bitboard\+::first\+Pos\+Set (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Return the location of the first bit set to 1 in the bitboard, starting at a1 -\/$>$ b1 -\/$>$ ... -\/$>$ h1 -\/$>$ a2 -\/$>$ b2 ... -\/$>$ h8. If no bits are set to 1, the return value is undefined. \mbox{\Hypertarget{classchess_1_1Bitboard_a0cf8894eef981acabf591ff692bd2284}\label{classchess_1_1Bitboard_a0cf8894eef981acabf591ff692bd2284}} 
+\index{chess::Bitboard@{chess::Bitboard}!getInternalValue@{getInternalValue}}
+\index{getInternalValue@{getInternalValue}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{getInternalValue()}{getInternalValue()}}
+{\footnotesize\ttfamily uint64\+\_\+t chess\+::\+Bitboard\+::get\+Internal\+Value (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get the underlying integer representation of the bitboard. The underlying representation is a 64 bit integer, where each bit corresponds to a position.
+
+You probably don\textquotesingle{}t need this. If you want to do bitwise manipulation of bitboards, the bitwise operations are overridden on the \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} class itself. \mbox{\Hypertarget{classchess_1_1Bitboard_af0a635c4b11ee26f39f80f6f48e613a1}\label{classchess_1_1Bitboard_af0a635c4b11ee26f39f80f6f48e613a1}} 
+\index{chess::Bitboard@{chess::Bitboard}!hasAnySet@{hasAnySet}}
+\index{hasAnySet@{hasAnySet}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{hasAnySet()}{hasAnySet()}}
+{\footnotesize\ttfamily bool chess\+::\+Bitboard\+::has\+Any\+Set (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Return true if any bits are set to 1 in the bitboard, or false if all bits are 0 \mbox{\Hypertarget{classchess_1_1Bitboard_a6cbaf9393b0798b6582435ccef3f9ef2}\label{classchess_1_1Bitboard_a6cbaf9393b0798b6582435ccef3f9ef2}} 
+\index{chess::Bitboard@{chess::Bitboard}!prettyPrint@{prettyPrint}}
+\index{prettyPrint@{prettyPrint}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{prettyPrint()}{prettyPrint()}}
+{\footnotesize\ttfamily void chess\+::\+Bitboard\+::pretty\+Print (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Print the bitboard onto stdout, using ansi escape sequences \mbox{\Hypertarget{classchess_1_1Bitboard_a3dcc81c41900b8a1852199b3273cad75}\label{classchess_1_1Bitboard_a3dcc81c41900b8a1852199b3273cad75}} 
+\index{chess::Bitboard@{chess::Bitboard}!print@{print}}
+\index{print@{print}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{print()}{print()}}
+{\footnotesize\ttfamily void chess\+::\+Bitboard\+::print (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Print the bitboard onto stdout \mbox{\Hypertarget{classchess_1_1Bitboard_a013f4867515ad3987b719ac7d7921d98}\label{classchess_1_1Bitboard_a013f4867515ad3987b719ac7d7921d98}} 
+\index{chess::Bitboard@{chess::Bitboard}!withPosClear@{withPosClear}}
+\index{withPosClear@{withPosClear}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{withPosClear()}{withPosClear()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} chess\+::\+Bitboard\+::with\+Pos\+Clear (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{pos\+To\+Clear }\end{DoxyParamCaption}) const}
+
+Construct a new bitboard that is a copy of this bitboard with the given position set to 0. \mbox{\Hypertarget{classchess_1_1Bitboard_a582db5f7a59ae914e5ac7c9469a8a8f9}\label{classchess_1_1Bitboard_a582db5f7a59ae914e5ac7c9469a8a8f9}} 
+\index{chess::Bitboard@{chess::Bitboard}!withPosFlipped@{withPosFlipped}}
+\index{withPosFlipped@{withPosFlipped}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{withPosFlipped()}{withPosFlipped()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} chess\+::\+Bitboard\+::with\+Pos\+Flipped (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{pos\+To\+Flip }\end{DoxyParamCaption}) const}
+
+Construct a new bitboard that is a copy of this bitboard with the given position flipped (ie flipped from a 0 to 1 or 1 to 0). \mbox{\Hypertarget{classchess_1_1Bitboard_a81f260a520ceab2975a7792a336e33cc}\label{classchess_1_1Bitboard_a81f260a520ceab2975a7792a336e33cc}} 
+\index{chess::Bitboard@{chess::Bitboard}!withPosSet@{withPosSet}}
+\index{withPosSet@{withPosSet}!chess::Bitboard@{chess::Bitboard}}
+\doxysubsubsection{\texorpdfstring{withPosSet()}{withPosSet()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} chess\+::\+Bitboard\+::with\+Pos\+Set (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{pos\+To\+Set }\end{DoxyParamCaption}) const}
+
+Construct a new bitboard that is a copy of this bitboard with the given position set to 1. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+cpp\+\_\+binding/\mbox{\hyperlink{chess_8hpp}{chess.\+hpp}}\end{DoxyCompactItemize}

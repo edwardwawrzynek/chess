@@ -1,0 +1,135 @@
+\hypertarget{classchess_1_1Move}{}\doxysection{chess\+::Move Class Reference}
+\label{classchess_1_1Move}\index{chess::Move@{chess::Move}}
+
+
+{\ttfamily \#include $<$chess.\+hpp$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+bool \mbox{\hyperlink{classchess_1_1Move_a5698d0d61f5fa59a49e4b4035f8598b6}{is\+End}} ()
+\item 
+\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1Move_afc15eb5012a5e4e2a7c64fdb5f99d875}{source\+Square}} () const
+\item 
+\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1Move_a168c27e1c396d39cfcffc6467faaf8dc}{destination\+Square}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1Move_a3115701fa6370e697e6f4e688fc0fce6}{is\+Promotion}} () const
+\item 
+\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} \mbox{\hyperlink{classchess_1_1Move_ab484b53edf1e862a737894c0da3fc0ec}{promotion\+Piece\+Type}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1Move_a25beadf3fc30fb93d34d627c249e8a78}{is\+Capture}} () const
+\item 
+\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} \mbox{\hyperlink{classchess_1_1Move_a8ceab28ccca0b41f6786ca6a3cec0090}{capture\+Piece\+Type}} () const
+\item 
+\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1Move_a035c33bf2e47cacdc35a58c63aa2b74f}{capture\+Square}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1Move_af524f6de40e7cd1c921d413eba54dd41}{is\+Castle}} () const
+\item 
+std\+::string \mbox{\hyperlink{classchess_1_1Move_a7291a0a3f933f17dd1fe5fc3ff8cb097}{to\+String}} () const
+\item 
+\mbox{\Hypertarget{classchess_1_1Move_afa4a0db1ad7381cd1fee943c7ac47377}\label{classchess_1_1Move_afa4a0db1ad7381cd1fee943c7ac47377}} 
+uint64\+\_\+t {\bfseries get\+Internal\+Value} () const
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+static \mbox{\hyperlink{classchess_1_1Move}{Move}} \mbox{\hyperlink{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}{end}} ()
+\item 
+static \mbox{\hyperlink{classchess_1_1Move}{Move}} \mbox{\hyperlink{classchess_1_1Move_a4311d1250139ca05405aea89fe31f472}{from\+String}} (const std\+::string \&move\+String, const \mbox{\hyperlink{classchess_1_1Board}{Board}} \&board)
+\item 
+\mbox{\Hypertarget{classchess_1_1Move_af171fe1f1ff93198103bf8c7d2c891e2}\label{classchess_1_1Move_af171fe1f1ff93198103bf8c7d2c891e2}} 
+static \mbox{\hyperlink{classchess_1_1Move}{Move}} {\bfseries from\+Internal\+Value} (uint64\+\_\+t internal)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+A move that can be made of a chessboard. \mbox{\hyperlink{classchess_1_1Move}{Move}} represents a half turn -- one player\textquotesingle{}s move. 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classchess_1_1Move_a8ceab28ccca0b41f6786ca6a3cec0090}\label{classchess_1_1Move_a8ceab28ccca0b41f6786ca6a3cec0090}} 
+\index{chess::Move@{chess::Move}!capturePieceType@{capturePieceType}}
+\index{capturePieceType@{capturePieceType}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{capturePieceType()}{capturePieceType()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} chess\+::\+Move\+::capture\+Piece\+Type (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+If the move is a capture, return what type of piece is being capture. Return Piece\+Type\+::\+None otherwise. \mbox{\Hypertarget{classchess_1_1Move_a035c33bf2e47cacdc35a58c63aa2b74f}\label{classchess_1_1Move_a035c33bf2e47cacdc35a58c63aa2b74f}} 
+\index{chess::Move@{chess::Move}!captureSquare@{captureSquare}}
+\index{captureSquare@{captureSquare}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{captureSquare()}{captureSquare()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Move\+::capture\+Square (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+If the move is a capture, return what square is being captured. Return \mbox{\hyperlink{classchess_1_1BoardPos_afe818c86a382a002af541dee089d5c5c}{Board\+Pos\+::invalid()}} otherwise.
+
+The capture square is the same as the destination square, except for en passant captures. \mbox{\Hypertarget{classchess_1_1Move_a168c27e1c396d39cfcffc6467faaf8dc}\label{classchess_1_1Move_a168c27e1c396d39cfcffc6467faaf8dc}} 
+\index{chess::Move@{chess::Move}!destinationSquare@{destinationSquare}}
+\index{destinationSquare@{destinationSquare}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{destinationSquare()}{destinationSquare()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Move\+::destination\+Square (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+get the destination square for the move (ie where the piece being moved ends up) \mbox{\Hypertarget{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}\label{classchess_1_1Move_a8b5e4a8ba4eca111d6db6d32d6d45b0d}} 
+\index{chess::Move@{chess::Move}!end@{end}}
+\index{end@{end}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{end()}{end()}}
+{\footnotesize\ttfamily static \mbox{\hyperlink{classchess_1_1Move}{Move}} chess\+::\+Move\+::end (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Construct a move with the \mbox{\hyperlink{classchess_1_1Move_a5698d0d61f5fa59a49e4b4035f8598b6}{is\+End()}} condition met \mbox{\Hypertarget{classchess_1_1Move_a4311d1250139ca05405aea89fe31f472}\label{classchess_1_1Move_a4311d1250139ca05405aea89fe31f472}} 
+\index{chess::Move@{chess::Move}!fromString@{fromString}}
+\index{fromString@{fromString}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{fromString()}{fromString()}}
+{\footnotesize\ttfamily static \mbox{\hyperlink{classchess_1_1Move}{Move}} chess\+::\+Move\+::from\+String (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{move\+String,  }\item[{const \mbox{\hyperlink{classchess_1_1Board}{Board}} \&}]{board }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Convert a move from a pure algebraic notation string to \mbox{\hyperlink{classchess_1_1Move}{Move}}. board is the board on which the move will be made. \mbox{\Hypertarget{classchess_1_1Move_a25beadf3fc30fb93d34d627c249e8a78}\label{classchess_1_1Move_a25beadf3fc30fb93d34d627c249e8a78}} 
+\index{chess::Move@{chess::Move}!isCapture@{isCapture}}
+\index{isCapture@{isCapture}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{isCapture()}{isCapture()}}
+{\footnotesize\ttfamily bool chess\+::\+Move\+::is\+Capture (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Return move if the move is a capture. \mbox{\Hypertarget{classchess_1_1Move_af524f6de40e7cd1c921d413eba54dd41}\label{classchess_1_1Move_af524f6de40e7cd1c921d413eba54dd41}} 
+\index{chess::Move@{chess::Move}!isCastle@{isCastle}}
+\index{isCastle@{isCastle}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{isCastle()}{isCastle()}}
+{\footnotesize\ttfamily bool chess\+::\+Move\+::is\+Castle (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Return true if the move is castling, false otherwise.
+
+Castling source and destinations are the source and destination of the king. For example, in white kingside castling, the source is e1 and the destination g1. \mbox{\Hypertarget{classchess_1_1Move_a5698d0d61f5fa59a49e4b4035f8598b6}\label{classchess_1_1Move_a5698d0d61f5fa59a49e4b4035f8598b6}} 
+\index{chess::Move@{chess::Move}!isEnd@{isEnd}}
+\index{isEnd@{isEnd}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{isEnd()}{isEnd()}}
+{\footnotesize\ttfamily bool chess\+::\+Move\+::is\+End (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Check if this move is the end of the move generator\textquotesingle{}s legal moves. If \mbox{\hyperlink{classchess_1_1Move_a5698d0d61f5fa59a49e4b4035f8598b6}{is\+End()}} is true, the move isn\textquotesingle{}t legal -- it just represents that the move generator that made it is out of moves. \mbox{\Hypertarget{classchess_1_1Move_a3115701fa6370e697e6f4e688fc0fce6}\label{classchess_1_1Move_a3115701fa6370e697e6f4e688fc0fce6}} 
+\index{chess::Move@{chess::Move}!isPromotion@{isPromotion}}
+\index{isPromotion@{isPromotion}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{isPromotion()}{isPromotion()}}
+{\footnotesize\ttfamily bool chess\+::\+Move\+::is\+Promotion (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+return true if the move is a pawn promotion \mbox{\Hypertarget{classchess_1_1Move_ab484b53edf1e862a737894c0da3fc0ec}\label{classchess_1_1Move_ab484b53edf1e862a737894c0da3fc0ec}} 
+\index{chess::Move@{chess::Move}!promotionPieceType@{promotionPieceType}}
+\index{promotionPieceType@{promotionPieceType}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{promotionPieceType()}{promotionPieceType()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} chess\+::\+Move\+::promotion\+Piece\+Type (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+If the move is a pawn promotion, return what type of piece it is being promoted to. Return Piece\+Type\+::\+None otherwise \mbox{\Hypertarget{classchess_1_1Move_afc15eb5012a5e4e2a7c64fdb5f99d875}\label{classchess_1_1Move_afc15eb5012a5e4e2a7c64fdb5f99d875}} 
+\index{chess::Move@{chess::Move}!sourceSquare@{sourceSquare}}
+\index{sourceSquare@{sourceSquare}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{sourceSquare()}{sourceSquare()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Move\+::source\+Square (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+get the source square for the move (ie where the piece being moved starts) \mbox{\Hypertarget{classchess_1_1Move_a7291a0a3f933f17dd1fe5fc3ff8cb097}\label{classchess_1_1Move_a7291a0a3f933f17dd1fe5fc3ff8cb097}} 
+\index{chess::Move@{chess::Move}!toString@{toString}}
+\index{toString@{toString}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{toString()}{toString()}}
+{\footnotesize\ttfamily std\+::string chess\+::\+Move\+::to\+String (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Convert the move to a string in pure algebraic notation.
+
+Pure algebraic notation is of the form\+: $<$src$>$$<$dst$>$$<$promote?$>$
+
+For example\+: e2e4 -- moving a piece from square e2 to e4 a7a8q -- moving a pawn from a7 to a8 and promoting to a queen
+
+Captures don\textquotesingle{}t have a special notation. En passant doesn\textquotesingle{}t have a special notation. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+cpp\+\_\+binding/\mbox{\hyperlink{chess_8hpp}{chess.\+hpp}}\end{DoxyCompactItemize}

@@ -1,0 +1,92 @@
+\hypertarget{chess_8hpp}{}\doxysection{cpp\+\_\+binding/chess.hpp File Reference}
+\label{chess_8hpp}\index{cpp\_binding/chess.hpp@{cpp\_binding/chess.hpp}}
+{\ttfamily \#include $<$cstdint$>$}\newline
+{\ttfamily \#include $<$string$>$}\newline
+{\ttfamily \#include $<$functional$>$}\newline
+{\ttfamily \#include $<$unordered\+\_\+map$>$}\newline
+\doxysubsection*{Classes}
+\begin{DoxyCompactItemize}
+\item 
+struct \mbox{\hyperlink{struct____chess__util__board}{\+\_\+\+\_\+chess\+\_\+util\+\_\+board}}
+\item 
+struct \mbox{\hyperlink{struct____chess__util__move__gen}{\+\_\+\+\_\+chess\+\_\+util\+\_\+move\+\_\+gen}}
+\item 
+class \mbox{\hyperlink{classchess_1_1BoardPos}{chess\+::\+Board\+Pos}}
+\item 
+class \mbox{\hyperlink{classchess_1_1Bitboard}{chess\+::\+Bitboard}}
+\item 
+class \mbox{\hyperlink{classchess_1_1Move}{chess\+::\+Move}}
+\item 
+class \mbox{\hyperlink{classchess_1_1MoveGenerator}{chess\+::\+Move\+Generator}}
+\item 
+class \mbox{\hyperlink{classchess_1_1Board}{chess\+::\+Board}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Typedefs}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{chess_8hpp_ae8e6cb4825d83668206514fff4496678}\label{chess_8hpp_ae8e6cb4825d83668206514fff4496678}} 
+typedef uint64\+\_\+t {\bfseries \+\_\+\+\_\+chess\+\_\+util\+\_\+bitboard}
+\item 
+\mbox{\Hypertarget{chess_8hpp_a83678a9e8d646c353d6966ef5b74fe28}\label{chess_8hpp_a83678a9e8d646c353d6966ef5b74fe28}} 
+typedef uint8\+\_\+t {\bfseries \+\_\+\+\_\+chess\+\_\+util\+\_\+board\+\_\+pos}
+\item 
+\mbox{\Hypertarget{chess_8hpp_a16dcaad4cc7e1506b949920cf9e7dc2d}\label{chess_8hpp_a16dcaad4cc7e1506b949920cf9e7dc2d}} 
+typedef uint64\+\_\+t {\bfseries \+\_\+\+\_\+chess\+\_\+util\+\_\+move}
+\end{DoxyCompactItemize}
+\doxysubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+enum \mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{chess\+::\+Player}} \{ {\bfseries None} = -\/1, 
+{\bfseries White} = 0, 
+{\bfseries Black} = 1
+ \}
+\item 
+enum \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{chess\+::\+Piece\+Type}} \{ \newline
+{\bfseries None} = -\/1, 
+{\bfseries King} = 0, 
+{\bfseries Pawn} = 1, 
+{\bfseries Knight} = 2, 
+\newline
+{\bfseries Rook} = 3, 
+{\bfseries Bishop} = 4, 
+{\bfseries Queen} = 5
+ \}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{chess_8hpp_a02e0d8c1178ac9d6654f64c165380683}\label{chess_8hpp_a02e0d8c1178ac9d6654f64c165380683}} 
+bool {\bfseries chess\+::operator==} (const Bitboard \&lhs, const Bitboard \&rhs)
+\item 
+\mbox{\Hypertarget{chess_8hpp_a2b6582869997e2797186c5b5ce65fffa}\label{chess_8hpp_a2b6582869997e2797186c5b5ce65fffa}} 
+bool {\bfseries chess\+::operator!=} (const Bitboard \&lhs, const Bitboard \&rhs)
+\item 
+void \mbox{\hyperlink{chess_8hpp_a3220f6624c3f51e4a824034c46c9680c}{chess\+::connect\+To\+Server}} (std\+::string url, const std\+::string \&port, const std\+::string \&apikey, const std\+::string \&name, const std\+::function$<$ std\+::pair$<$ Move, std\+::unordered\+\_\+map$<$ std\+::string, std\+::string $>$$>$(Board \&)$>$ \&function)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Enumeration Type Documentation}
+\mbox{\Hypertarget{chess_8hpp_a467a34711626b1e754ed31dd5c104666}\label{chess_8hpp_a467a34711626b1e754ed31dd5c104666}} 
+\index{chess.hpp@{chess.hpp}!PieceType@{PieceType}}
+\index{PieceType@{PieceType}!chess.hpp@{chess.hpp}}
+\doxysubsubsection{\texorpdfstring{PieceType}{PieceType}}
+{\footnotesize\ttfamily enum \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{chess\+::\+Piece\+Type}}\hspace{0.3cm}{\ttfamily [strong]}}
+
+A type of piece in a chess game \mbox{\Hypertarget{chess_8hpp_ad6d45373245908e3d86a5488e688f995}\label{chess_8hpp_ad6d45373245908e3d86a5488e688f995}} 
+\index{chess.hpp@{chess.hpp}!Player@{Player}}
+\index{Player@{Player}!chess.hpp@{chess.hpp}}
+\doxysubsubsection{\texorpdfstring{Player}{Player}}
+{\footnotesize\ttfamily enum \mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{chess\+::\+Player}}\hspace{0.3cm}{\ttfamily [strong]}}
+
+A player in a chess game 
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{chess_8hpp_a3220f6624c3f51e4a824034c46c9680c}\label{chess_8hpp_a3220f6624c3f51e4a824034c46c9680c}} 
+\index{chess.hpp@{chess.hpp}!connectToServer@{connectToServer}}
+\index{connectToServer@{connectToServer}!chess.hpp@{chess.hpp}}
+\doxysubsubsection{\texorpdfstring{connectToServer()}{connectToServer()}}
+{\footnotesize\ttfamily void chess\+::connect\+To\+Server (\begin{DoxyParamCaption}\item[{std\+::string}]{url,  }\item[{const std\+::string \&}]{port,  }\item[{const std\+::string \&}]{apikey,  }\item[{const std\+::string \&}]{name,  }\item[{const std\+::function$<$ std\+::pair$<$ \mbox{\hyperlink{classchess_1_1Move}{Move}}, std\+::unordered\+\_\+map$<$ std\+::string, std\+::string $>$$>$(\mbox{\hyperlink{classchess_1_1Board}{Board}} \&)$>$ \&}]{function }\end{DoxyParamCaption})}
+
+Connect to a codekata chess server at the given url and port, send apikey and name, and block until the server requests a move.
+
+When a move is requested, function will be called. It will be passed the current board, and should return the move to make and a map of debug information to pass to the server (debug info can be empty) 

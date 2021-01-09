@@ -1,0 +1,100 @@
+\hypertarget{classchess_1_1BoardPos}{}\doxysection{chess\+::Board\+Pos Class Reference}
+\label{classchess_1_1BoardPos}\index{chess::BoardPos@{chess::BoardPos}}
+
+
+{\ttfamily \#include $<$chess.\+hpp$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classchess_1_1BoardPos_a4113c4448fc4330d1d4f5c8a3197ee24}{Board\+Pos}} (int \mbox{\hyperlink{classchess_1_1BoardPos_a70bd53aaa447ed9352da8c1d5b08565e}{x}}, int \mbox{\hyperlink{classchess_1_1BoardPos_a2fa4af032bff2c8c835183be16e2eb4d}{y}})
+\item 
+int \mbox{\hyperlink{classchess_1_1BoardPos_a70bd53aaa447ed9352da8c1d5b08565e}{x}} () const
+\item 
+int \mbox{\hyperlink{classchess_1_1BoardPos_a2fa4af032bff2c8c835183be16e2eb4d}{y}} () const
+\item 
+std\+::string \mbox{\hyperlink{classchess_1_1BoardPos_a6d3675b6d6570ee45199735c208aff14}{to\+String}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1BoardPos_af55a0fcc8a5c17ede8aaf4f44fc83df4}{is\+Invalid}} () const
+\item 
+uint8\+\_\+t \mbox{\hyperlink{classchess_1_1BoardPos_a5abd8899779622a304a2694f35dcfd99}{get\+Internal\+Value}} () const
+\end{DoxyCompactItemize}
+\doxysubsection*{Static Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+static \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1BoardPos_a3487d6f6cbe50e8ac5b2e0608effec4c}{from\+String}} (const std\+::string \&str)
+\item 
+static \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1BoardPos_afe818c86a382a002af541dee089d5c5c}{invalid}} ()
+\item 
+static \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1BoardPos_a15dc56d96f58c5c8df3b0296c3969c9f}{from\+Internal\+Value}} (uint8\+\_\+t pos)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+A position on a chessboard. A position\textquotesingle{}s x coordinate corresponds to it\textquotesingle{}s rank (a-\/f) and it y coordinate corresponds to it\textquotesingle{}s file (1-\/8) 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classchess_1_1BoardPos_a4113c4448fc4330d1d4f5c8a3197ee24}\label{classchess_1_1BoardPos_a4113c4448fc4330d1d4f5c8a3197ee24}} 
+\index{chess::BoardPos@{chess::BoardPos}!BoardPos@{BoardPos}}
+\index{BoardPos@{BoardPos}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{BoardPos()}{BoardPos()}}
+{\footnotesize\ttfamily chess\+::\+Board\+Pos\+::\+Board\+Pos (\begin{DoxyParamCaption}\item[{int}]{x,  }\item[{int}]{y }\end{DoxyParamCaption})}
+
+Construct a board position from the given x and y coordinates 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classchess_1_1BoardPos_a15dc56d96f58c5c8df3b0296c3969c9f}\label{classchess_1_1BoardPos_a15dc56d96f58c5c8df3b0296c3969c9f}} 
+\index{chess::BoardPos@{chess::BoardPos}!fromInternalValue@{fromInternalValue}}
+\index{fromInternalValue@{fromInternalValue}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{fromInternalValue()}{fromInternalValue()}}
+{\footnotesize\ttfamily static \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Board\+Pos\+::from\+Internal\+Value (\begin{DoxyParamCaption}\item[{uint8\+\_\+t}]{pos }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Construct a \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} from an underlying value. You probably don\textquotesingle{}t need this. \mbox{\Hypertarget{classchess_1_1BoardPos_a3487d6f6cbe50e8ac5b2e0608effec4c}\label{classchess_1_1BoardPos_a3487d6f6cbe50e8ac5b2e0608effec4c}} 
+\index{chess::BoardPos@{chess::BoardPos}!fromString@{fromString}}
+\index{fromString@{fromString}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{fromString()}{fromString()}}
+{\footnotesize\ttfamily static \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Board\+Pos\+::from\+String (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{str }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Convert a string in rank and file notation to a board position. \mbox{\Hypertarget{classchess_1_1BoardPos_a5abd8899779622a304a2694f35dcfd99}\label{classchess_1_1BoardPos_a5abd8899779622a304a2694f35dcfd99}} 
+\index{chess::BoardPos@{chess::BoardPos}!getInternalValue@{getInternalValue}}
+\index{getInternalValue@{getInternalValue}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{getInternalValue()}{getInternalValue()}}
+{\footnotesize\ttfamily uint8\+\_\+t chess\+::\+Board\+Pos\+::get\+Internal\+Value (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get the underlying integer representation of the position. The underlying representation is\+: (x \& 7) + (y \& 7) $<$$<$ 3
+
+You probably don\textquotesingle{}t need this. \mbox{\Hypertarget{classchess_1_1BoardPos_afe818c86a382a002af541dee089d5c5c}\label{classchess_1_1BoardPos_afe818c86a382a002af541dee089d5c5c}} 
+\index{chess::BoardPos@{chess::BoardPos}!invalid@{invalid}}
+\index{invalid@{invalid}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{invalid()}{invalid()}}
+{\footnotesize\ttfamily static \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Board\+Pos\+::invalid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [static]}}
+
+Construct an invalid board position \mbox{\Hypertarget{classchess_1_1BoardPos_af55a0fcc8a5c17ede8aaf4f44fc83df4}\label{classchess_1_1BoardPos_af55a0fcc8a5c17ede8aaf4f44fc83df4}} 
+\index{chess::BoardPos@{chess::BoardPos}!isInvalid@{isInvalid}}
+\index{isInvalid@{isInvalid}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{isInvalid()}{isInvalid()}}
+{\footnotesize\ttfamily bool chess\+::\+Board\+Pos\+::is\+Invalid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Check if the board position is invalid (ie off the board) \mbox{\Hypertarget{classchess_1_1BoardPos_a6d3675b6d6570ee45199735c208aff14}\label{classchess_1_1BoardPos_a6d3675b6d6570ee45199735c208aff14}} 
+\index{chess::BoardPos@{chess::BoardPos}!toString@{toString}}
+\index{toString@{toString}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{toString()}{toString()}}
+{\footnotesize\ttfamily std\+::string chess\+::\+Board\+Pos\+::to\+String (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get a string representing the position in rank and file notation. For example, the following positions correspond to the following strings\+: (0, 0) -\/$>$ a1 (1, 0) -\/$>$ b1 (7, 0) -\/$>$ h1 (0, 1) -\/$>$ a2 (0, 7) -\/$>$ a8 (7, 7) -\/$>$ h8 \mbox{\Hypertarget{classchess_1_1BoardPos_a70bd53aaa447ed9352da8c1d5b08565e}\label{classchess_1_1BoardPos_a70bd53aaa447ed9352da8c1d5b08565e}} 
+\index{chess::BoardPos@{chess::BoardPos}!x@{x}}
+\index{x@{x}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{x()}{x()}}
+{\footnotesize\ttfamily int chess\+::\+Board\+Pos\+::x (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get the x coordinate of the position. It is in the range 0 -\/ 7 inclusive. The x coordinate corresponds to the position\textquotesingle{}s rank on the chessboard. \mbox{\Hypertarget{classchess_1_1BoardPos_a2fa4af032bff2c8c835183be16e2eb4d}\label{classchess_1_1BoardPos_a2fa4af032bff2c8c835183be16e2eb4d}} 
+\index{chess::BoardPos@{chess::BoardPos}!y@{y}}
+\index{y@{y}!chess::BoardPos@{chess::BoardPos}}
+\doxysubsubsection{\texorpdfstring{y()}{y()}}
+{\footnotesize\ttfamily int chess\+::\+Board\+Pos\+::y (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get the y coordinate of the position. It is in the range 0 -\/ 7 inclusive. The y coordinate corresponds to the position\textquotesingle{}s file on the chessboard. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+cpp\+\_\+binding/\mbox{\hyperlink{chess_8hpp}{chess.\+hpp}}\end{DoxyCompactItemize}

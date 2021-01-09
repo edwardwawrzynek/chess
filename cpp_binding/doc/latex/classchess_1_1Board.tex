@@ -1,0 +1,189 @@
+\hypertarget{classchess_1_1Board}{}\doxysection{chess\+::Board Class Reference}
+\label{classchess_1_1Board}\index{chess::Board@{chess::Board}}
+
+
+{\ttfamily \#include $<$chess.\+hpp$>$}
+
+\doxysubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{classchess_1_1Board_ace67ae18ec5520dca35add4243d6a5b3}{Board}} (const std\+::string \&fen\+String)
+\item 
+std\+::string \mbox{\hyperlink{classchess_1_1Board_a7aa1bae8cf12f889540a832c312b7d05}{to\+String}} () const
+\item 
+\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} \mbox{\hyperlink{classchess_1_1Board_a26cdb28d61016b779dc989d2fee98579}{piece\+Type\+On\+Square}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} square) const
+\item 
+\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} \mbox{\hyperlink{classchess_1_1Board_adbac740b108d87eb7d5994e73d85b122}{player\+On\+Square}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} square) const
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \mbox{\hyperlink{classchess_1_1Board_a1db595b22f25e104fc22e211349b9ef9}{player\+Bitboard}} (\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} player) const
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \mbox{\hyperlink{classchess_1_1Board_a279e48ba7f348c4aa93dad4a85e4a5b1}{piece\+Bitboard}} (\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} player, \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} piece) const
+\item 
+\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} \mbox{\hyperlink{classchess_1_1Board_a0154f01d42aad7e7683f393dd089b393}{player\+To\+Move}} () const
+\item 
+int \mbox{\hyperlink{classchess_1_1Board_abd5a5d00ce2805b34dab8dc523961d2e}{full\+Turn\+Number}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1Board_aa7cf05706788bf3937eb3fe2db7b1d71}{player\+In\+Check}} (\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} player) const
+\item 
+\mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} \mbox{\hyperlink{classchess_1_1Board_a832c5012a0b7e6fbcb358079c1a3f11a}{square\+Threatened}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} square, \mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} attacking\+Player)
+\item 
+void \mbox{\hyperlink{classchess_1_1Board_a73313bc49e34b1c8efef73cba9d686c5}{make\+Move}} (\mbox{\hyperlink{classchess_1_1Move}{Move}} move)
+\item 
+void \mbox{\hyperlink{classchess_1_1Board_aa44158b43be5ba5aef62497082c4e3d9}{unmake\+Move}} (\mbox{\hyperlink{classchess_1_1Move}{Move}} move)
+\item 
+\mbox{\hyperlink{classchess_1_1MoveGenerator}{Move\+Generator}} \mbox{\hyperlink{classchess_1_1Board_af858746a5c2a11211389b8f92f7ec409}{get\+Move\+Generator}} ()
+\item 
+bool \mbox{\hyperlink{classchess_1_1Board_aff6b76bab903ed08a3cdb38e6bed7e48}{player\+To\+Move\+Is\+Checkmate}} ()
+\item 
+bool \mbox{\hyperlink{classchess_1_1Board_afdda10da8060cab3687aaf5948d0c5ad}{player\+To\+Move\+Is\+Stalemate}} ()
+\item 
+void \mbox{\hyperlink{classchess_1_1Board_a99404e565cccd6b2ab0dace953af9f7e}{print}} () const
+\item 
+void \mbox{\hyperlink{classchess_1_1Board_ab0308a251cb8bf6c70c5e17823c1607b}{pretty\+Print}} () const
+\item 
+\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1Board_a4ec660ea187489ad19fffbad000c9cfb}{en\+Passant\+Target}} () const
+\item 
+bool \mbox{\hyperlink{classchess_1_1Board_a8f3874168a4f6871f45d22204222b25a}{has\+Castling\+Rights}} (\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} player, \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} side) const
+\item 
+\mbox{\Hypertarget{classchess_1_1Board_aaa00e4d77e11308cfa8368b6825efef2}\label{classchess_1_1Board_aaa00e4d77e11308cfa8368b6825efef2}} 
+struct \mbox{\hyperlink{struct____chess__util__board}{\+\_\+\+\_\+chess\+\_\+util\+\_\+board}} $\ast$ {\bfseries get\+Internal\+Value} ()
+\item 
+\mbox{\Hypertarget{classchess_1_1Board_aef620b3245ecf3fcf2e4cdb9ff0a78a2}\label{classchess_1_1Board_aef620b3245ecf3fcf2e4cdb9ff0a78a2}} 
+const struct \mbox{\hyperlink{struct____chess__util__board}{\+\_\+\+\_\+chess\+\_\+util\+\_\+board}} $\ast$ {\bfseries get\+Internal\+Value} () const
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+A chess board. \mbox{\hyperlink{classchess_1_1Board}{Board}} includes the layout of the pieces on the board and the current player to move 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classchess_1_1Board_ace67ae18ec5520dca35add4243d6a5b3}\label{classchess_1_1Board_ace67ae18ec5520dca35add4243d6a5b3}} 
+\index{chess::Board@{chess::Board}!Board@{Board}}
+\index{Board@{Board}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{Board()}{Board()}}
+{\footnotesize\ttfamily chess\+::\+Board\+::\+Board (\begin{DoxyParamCaption}\item[{const std\+::string \&}]{fen\+String }\end{DoxyParamCaption})}
+
+Construct a board from a string in Forsyth-\/\+Edwards Notation (F\+EN). 
+
+\doxysubsection{Member Function Documentation}
+\mbox{\Hypertarget{classchess_1_1Board_a4ec660ea187489ad19fffbad000c9cfb}\label{classchess_1_1Board_a4ec660ea187489ad19fffbad000c9cfb}} 
+\index{chess::Board@{chess::Board}!enPassantTarget@{enPassantTarget}}
+\index{enPassantTarget@{enPassantTarget}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{enPassantTarget()}{enPassantTarget()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} chess\+::\+Board\+::en\+Passant\+Target (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get the en passant target square, or \mbox{\hyperlink{classchess_1_1BoardPos_afe818c86a382a002af541dee089d5c5c}{Board\+Pos\+::invalid()}} if there is no en passant target square.
+
+The en passant target square is the square which a pawn skipped last turn while moving forwards two squares, and is therefore vulnerable to en passant capture. If a pawn didn\textquotesingle{}t move forward two squares last turn, these is no en passant target. \mbox{\Hypertarget{classchess_1_1Board_abd5a5d00ce2805b34dab8dc523961d2e}\label{classchess_1_1Board_abd5a5d00ce2805b34dab8dc523961d2e}} 
+\index{chess::Board@{chess::Board}!fullTurnNumber@{fullTurnNumber}}
+\index{fullTurnNumber@{fullTurnNumber}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{fullTurnNumber()}{fullTurnNumber()}}
+{\footnotesize\ttfamily int chess\+::\+Board\+::full\+Turn\+Number (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get the turn number for the board. The turn number starts at 1 and is incremented when a full turn is made (both players make a move) \mbox{\Hypertarget{classchess_1_1Board_af858746a5c2a11211389b8f92f7ec409}\label{classchess_1_1Board_af858746a5c2a11211389b8f92f7ec409}} 
+\index{chess::Board@{chess::Board}!getMoveGenerator@{getMoveGenerator}}
+\index{getMoveGenerator@{getMoveGenerator}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{getMoveGenerator()}{getMoveGenerator()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1MoveGenerator}{Move\+Generator}} chess\+::\+Board\+::get\+Move\+Generator (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Construct a move generator for the board. The move generator will iterate through all the legal moves that can be made on the board. \mbox{\Hypertarget{classchess_1_1Board_a8f3874168a4f6871f45d22204222b25a}\label{classchess_1_1Board_a8f3874168a4f6871f45d22204222b25a}} 
+\index{chess::Board@{chess::Board}!hasCastlingRights@{hasCastlingRights}}
+\index{hasCastlingRights@{hasCastlingRights}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{hasCastlingRights()}{hasCastlingRights()}}
+{\footnotesize\ttfamily bool chess\+::\+Board\+::has\+Castling\+Rights (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}}}]{player,  }\item[{\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}}}]{side }\end{DoxyParamCaption}) const}
+
+Check if the player has castling rights on side. side should be either Piece\+Type\+::\+King or Piece\+Type\+::\+Queen. Having castling rights does not mean the player can castle -- rather, it means only they have not moved their king and rook \mbox{\Hypertarget{classchess_1_1Board_a73313bc49e34b1c8efef73cba9d686c5}\label{classchess_1_1Board_a73313bc49e34b1c8efef73cba9d686c5}} 
+\index{chess::Board@{chess::Board}!makeMove@{makeMove}}
+\index{makeMove@{makeMove}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{makeMove()}{makeMove()}}
+{\footnotesize\ttfamily void chess\+::\+Board\+::make\+Move (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1Move}{Move}}}]{move }\end{DoxyParamCaption})}
+
+Make the given move. This modifies the board. \mbox{\Hypertarget{classchess_1_1Board_a279e48ba7f348c4aa93dad4a85e4a5b1}\label{classchess_1_1Board_a279e48ba7f348c4aa93dad4a85e4a5b1}} 
+\index{chess::Board@{chess::Board}!pieceBitboard@{pieceBitboard}}
+\index{pieceBitboard@{pieceBitboard}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{pieceBitboard()}{pieceBitboard()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} chess\+::\+Board\+::piece\+Bitboard (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}}}]{player,  }\item[{\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}}}]{piece }\end{DoxyParamCaption}) const}
+
+Get a bitboard with bits set for each square that has a player has a piece of the given type on. \mbox{\Hypertarget{classchess_1_1Board_a26cdb28d61016b779dc989d2fee98579}\label{classchess_1_1Board_a26cdb28d61016b779dc989d2fee98579}} 
+\index{chess::Board@{chess::Board}!pieceTypeOnSquare@{pieceTypeOnSquare}}
+\index{pieceTypeOnSquare@{pieceTypeOnSquare}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{pieceTypeOnSquare()}{pieceTypeOnSquare()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} chess\+::\+Board\+::piece\+Type\+On\+Square (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{square }\end{DoxyParamCaption}) const}
+
+Get the type of piece on the given square, or Piece\+Type\+::\+None if no piece is on the square. \mbox{\Hypertarget{classchess_1_1Board_a1db595b22f25e104fc22e211349b9ef9}\label{classchess_1_1Board_a1db595b22f25e104fc22e211349b9ef9}} 
+\index{chess::Board@{chess::Board}!playerBitboard@{playerBitboard}}
+\index{playerBitboard@{playerBitboard}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{playerBitboard()}{playerBitboard()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} chess\+::\+Board\+::player\+Bitboard (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}}}]{player }\end{DoxyParamCaption}) const}
+
+Get a bitboard with bits set for each square that has a piece on it owned by the given player (of any type). \mbox{\Hypertarget{classchess_1_1Board_aa7cf05706788bf3937eb3fe2db7b1d71}\label{classchess_1_1Board_aa7cf05706788bf3937eb3fe2db7b1d71}} 
+\index{chess::Board@{chess::Board}!playerInCheck@{playerInCheck}}
+\index{playerInCheck@{playerInCheck}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{playerInCheck()}{playerInCheck()}}
+{\footnotesize\ttfamily bool chess\+::\+Board\+::player\+In\+Check (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}}}]{player }\end{DoxyParamCaption}) const}
+
+Check if the given player is currently in check. \mbox{\Hypertarget{classchess_1_1Board_adbac740b108d87eb7d5994e73d85b122}\label{classchess_1_1Board_adbac740b108d87eb7d5994e73d85b122}} 
+\index{chess::Board@{chess::Board}!playerOnSquare@{playerOnSquare}}
+\index{playerOnSquare@{playerOnSquare}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{playerOnSquare()}{playerOnSquare()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} chess\+::\+Board\+::player\+On\+Square (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{square }\end{DoxyParamCaption}) const}
+
+Get the player that owns the piece on the given square, or Player\+::\+None if no piece is on the square. \mbox{\Hypertarget{classchess_1_1Board_a0154f01d42aad7e7683f393dd089b393}\label{classchess_1_1Board_a0154f01d42aad7e7683f393dd089b393}} 
+\index{chess::Board@{chess::Board}!playerToMove@{playerToMove}}
+\index{playerToMove@{playerToMove}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{playerToMove()}{playerToMove()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}} chess\+::\+Board\+::player\+To\+Move (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Get which player\textquotesingle{}s turn it is to move \mbox{\Hypertarget{classchess_1_1Board_aff6b76bab903ed08a3cdb38e6bed7e48}\label{classchess_1_1Board_aff6b76bab903ed08a3cdb38e6bed7e48}} 
+\index{chess::Board@{chess::Board}!playerToMoveIsCheckmate@{playerToMoveIsCheckmate}}
+\index{playerToMoveIsCheckmate@{playerToMoveIsCheckmate}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{playerToMoveIsCheckmate()}{playerToMoveIsCheckmate()}}
+{\footnotesize\ttfamily bool chess\+::\+Board\+::player\+To\+Move\+Is\+Checkmate (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Check if the player to move is in checkmate.
+
+This method is slow. If you are iterating through a \mbox{\hyperlink{classchess_1_1MoveGenerator}{Move\+Generator}}, consider using \mbox{\hyperlink{classchess_1_1MoveGenerator_a0b6e91971319be8c5fd9fa4c9a09584d}{Move\+Generator\+::is\+Checkmate}} instead. \mbox{\Hypertarget{classchess_1_1Board_afdda10da8060cab3687aaf5948d0c5ad}\label{classchess_1_1Board_afdda10da8060cab3687aaf5948d0c5ad}} 
+\index{chess::Board@{chess::Board}!playerToMoveIsStalemate@{playerToMoveIsStalemate}}
+\index{playerToMoveIsStalemate@{playerToMoveIsStalemate}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{playerToMoveIsStalemate()}{playerToMoveIsStalemate()}}
+{\footnotesize\ttfamily bool chess\+::\+Board\+::player\+To\+Move\+Is\+Stalemate (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})}
+
+Check if the player to move is in stalemate.
+
+This method is slow. If you are iterating through a \mbox{\hyperlink{classchess_1_1MoveGenerator}{Move\+Generator}}, consider using \mbox{\hyperlink{classchess_1_1MoveGenerator_aee070a4796ffe520a6a49b8fbc58cbbd}{Move\+Generator\+::is\+Stalemate}} instead. \mbox{\Hypertarget{classchess_1_1Board_ab0308a251cb8bf6c70c5e17823c1607b}\label{classchess_1_1Board_ab0308a251cb8bf6c70c5e17823c1607b}} 
+\index{chess::Board@{chess::Board}!prettyPrint@{prettyPrint}}
+\index{prettyPrint@{prettyPrint}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{prettyPrint()}{prettyPrint()}}
+{\footnotesize\ttfamily void chess\+::\+Board\+::pretty\+Print (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Print the board on stdout using ansi escape codes and unicode chess characters \mbox{\Hypertarget{classchess_1_1Board_a99404e565cccd6b2ab0dace953af9f7e}\label{classchess_1_1Board_a99404e565cccd6b2ab0dace953af9f7e}} 
+\index{chess::Board@{chess::Board}!print@{print}}
+\index{print@{print}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{print()}{print()}}
+{\footnotesize\ttfamily void chess\+::\+Board\+::print (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Print the board on stdout \mbox{\Hypertarget{classchess_1_1Board_a832c5012a0b7e6fbcb358079c1a3f11a}\label{classchess_1_1Board_a832c5012a0b7e6fbcb358079c1a3f11a}} 
+\index{chess::Board@{chess::Board}!squareThreatened@{squareThreatened}}
+\index{squareThreatened@{squareThreatened}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{squareThreatened()}{squareThreatened()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{classchess_1_1Bitboard}{Bitboard}} chess\+::\+Board\+::square\+Threatened (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{square,  }\item[{\mbox{\hyperlink{chess_8hpp_ad6d45373245908e3d86a5488e688f995}{Player}}}]{attacking\+Player }\end{DoxyParamCaption})}
+
+Check if a given square is threatened by attacking\+Player. IE -- if attacking\+Player could capture square on their next turn.
+
+Returns a bitboard with bits set for each piece that is threatening the square. \mbox{\Hypertarget{classchess_1_1Board_a7aa1bae8cf12f889540a832c312b7d05}\label{classchess_1_1Board_a7aa1bae8cf12f889540a832c312b7d05}} 
+\index{chess::Board@{chess::Board}!toString@{toString}}
+\index{toString@{toString}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{toString()}{toString()}}
+{\footnotesize\ttfamily std\+::string chess\+::\+Board\+::to\+String (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption}) const}
+
+Convert the board to a string in Forsyth-\/\+Edwards Notation (F\+EN). The halfmove and turn counters will contain fake values (\mbox{\hyperlink{classchess_1_1Board}{Board}} doesn\textquotesingle{}t track them). \mbox{\Hypertarget{classchess_1_1Board_aa44158b43be5ba5aef62497082c4e3d9}\label{classchess_1_1Board_aa44158b43be5ba5aef62497082c4e3d9}} 
+\index{chess::Board@{chess::Board}!unmakeMove@{unmakeMove}}
+\index{unmakeMove@{unmakeMove}!chess::Board@{chess::Board}}
+\doxysubsubsection{\texorpdfstring{unmakeMove()}{unmakeMove()}}
+{\footnotesize\ttfamily void chess\+::\+Board\+::unmake\+Move (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1Move}{Move}}}]{move }\end{DoxyParamCaption})}
+
+Unmake the given move. The move to unmake has to have been the most recently made move on the board. This modifies the board. 
+
+The documentation for this class was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+cpp\+\_\+binding/\mbox{\hyperlink{chess_8hpp}{chess.\+hpp}}\end{DoxyCompactItemize}
