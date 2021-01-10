@@ -19,7 +19,7 @@ COPY . .
 RUN mkdir build
 WORKDIR /usr/src/chess/build/
 RUN cmake ..
-RUN cmake --build . --target chess_server chess-util chess
+RUN cmake --build . --target chess_server chess-util chess-cpp
 RUN cmake --install .
 RUN ldconfig
 
