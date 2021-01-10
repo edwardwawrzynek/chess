@@ -22,6 +22,7 @@ body {
   flex: 1 1 auto;
   overflow-y: scroll;
   scrollbar-width: thin;
+  max-width: calc(100% - 20rem);
 }
 
 .gameSidebarContainer {
@@ -31,6 +32,10 @@ body {
   max-width: 20rem;
   overflow-y: scroll;
   scrollbar-width: thin;
+}
+
+.gameFlexSide {
+  min-width: 2rem;
 }
 
 .flexExpand {
@@ -275,5 +280,10 @@ button, input[type=submit] {
 
   .gamesContainer {
     overflow-y: visible;
-  }  
+    max-width: 100% !important;
+  }
+
+  .gameFlexSide {
+    min-width: 0 !important;
+  }
 }

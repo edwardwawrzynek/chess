@@ -4,6 +4,7 @@
 #include <string_view>
 #include <cstdlib>
 #include <uWebSockets/App.h>
+#include <ctime>
 
 #include "AsyncFileReader.hpp"
 #include "AsyncFileStreamer.hpp"
@@ -311,6 +312,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   AsyncFileStreamer asyncFileStreamer(argv[1]);
+  time_t last_ping = std::time(nullptr);
 
   auto port = 9001;
   if(std::getenv("PORT") != nullptr) {
@@ -331,12 +333,13 @@ int main(int argc, char *argv[]) {
            /* Handlers */
            .upgrade = nullptr,
            .open =
-               [](auto * /*ws*/) {
+               [](auto * ws) {
                  /* Open event here, you may access ws->getUserData() which
                   * points to a PerSocketData struct */
+                 ws->subscribe("ping");
                },
            .message =
-               [](auto *ws, std::string_view message, uWS::OpCode opCode) {
+               [&last_ping](auto *ws, std::string_view message, uWS::OpCode opCode) {
                  std::vector<std::string> cmd = parseCommand(message);
                  // command: apikey key
                  // register as a player with the given key
@@ -480,7 +483,16 @@ int main(int argc, char *argv[]) {
                      auto id = player->id;
                      ws->send("playerid " + std::to_string(id) + "\n", opCode);
                    }
-                 } else {
+                 }
+                 // comand: ping
+                 else if(cmd[0] == "ping") {
+                   time_t now = std::time(nullptr);
+                   if(std::difftime(now, last_ping) > 15.0) {
+                     ws->publish("ping", "ping");
+                     last_ping = now;
+                   }
+                 }
+                 else {
                    ws->send("error invalid operation " + cmd[0], opCode);
                  }
                },

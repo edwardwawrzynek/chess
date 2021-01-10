@@ -233,6 +233,13 @@ export default function Games(props: GamesProps) {
       console.error("Websocket error: ", event);
     });
     setSocket(newSocket);
+    const intervalId = setInterval(() => {
+      newSocket.send("ping");
+    }, 15000);
+
+    return () => {
+      clearInterval(intervalId);
+    }
   }, []);
 
   function handleServerMsg(msg: string) {
@@ -359,7 +366,7 @@ export default function Games(props: GamesProps) {
           </div>
         </div>
         <div className="flex">
-          <div className="flexExpand"/>
+          <div className="flexExpand gameFlexSide"/>
           <div>
             <div className="flex">
               <div className="gameBody">
@@ -414,7 +421,7 @@ export default function Games(props: GamesProps) {
               );
             })}
           </div>
-          <div className="flexExpand"/>
+          <div className="flexExpand gameFlexSide"/>
         </div>
       </div>
     );
