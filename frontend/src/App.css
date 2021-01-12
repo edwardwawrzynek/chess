@@ -76,7 +76,7 @@ body {
 }
 
 .gameMoves {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   margin-left: 1rem;
   flex-direction: column;
   margin-top: 20px;
@@ -103,7 +103,7 @@ body {
 }
 
 .gameInfo {
-  max-height: 5rem;
+  height: 4.5rem;
   font-size: 0.7rem;
   margin-bottom: 0.3rem;
 }
@@ -116,6 +116,16 @@ body {
 .gameStatus {
   margin-top: 0.5rem;
   text-align: center;
+}
+
+.evalGraph {
+  margin-left: 0.5rem;
+  border-radius: 5px;
+  flex: 0 1 auto;
+}
+
+.gameInfoCont {
+  flex: 1 1 auto;
 }
 
 ::-webkit-scrollbar {

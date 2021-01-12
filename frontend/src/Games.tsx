@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Fragment } from 'react';
 import BoardFENWrapper from './BoardFENWrapper';
 import BitboardInspect from './BitboardInspect';
+import EvalGraph from './EvalGraph';
 
 const API_URL = process.env.NODE_ENV === "development" ? 'ws://localhost:9001' : 'ws://codekata-chess.herokuapp.com:80';
 const TOURNAMENT_GAME_ORDERING = false;
@@ -369,6 +370,7 @@ export default function Games(props: GamesProps) {
           <div className="flexExpand gameFlexSide"/>
           <div>
             <div className="flex">
+              <div className="flexExpand"></div>
               <div className="gameBody">
                 <BoardFENWrapper 
                   fen={game.fen}
@@ -396,30 +398,43 @@ export default function Games(props: GamesProps) {
                 </table>
                 <div className="gameStatus roundedDiv">{status}</div>
               </div>
+              <div className="flexExpand"></div>
             </div>
-            {game.client_data.map((data: {[key: string]: string}) => {
-              const body = []
-              for(const [key, value] of Object.entries(data)) {
-                //if(key === "eval") continue;
-                body.push(
-                  <tr>
-                    <td className="playerName">{key}</td>
-                    <td>{value}</td>
-                  </tr>
-                );
-              }
-              return (
-                <div className="flex gameInfo">
-                  <div className="gameInfoDiv roundedDiv scroll">
-                    <table>
-                      <tbody>
-                        {body}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="flex">
+              <div className="gameInfoCont">
+                {game.client_data.map((data: {[key: string]: string}) => {
+                  const body = []
+                  for(const [key, value] of Object.entries(data)) {
+                    if(key === "eval") continue;
+                    body.push(
+                      <tr>
+                        <td className="playerName">{key}</td>
+                        <td>{value}</td>
+                      </tr>
+                    );
+                  }
+                  return (
+                    <div className="flex gameInfo">
+                      <div className="gameInfoDiv roundedDiv scroll">
+                        <table>
+                          <tbody>
+                            {body}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <EvalGraph 
+                width={300} 
+                height={9.3 * parseFloat(getComputedStyle(document.documentElement).fontSize)} 
+                white={game.client_data[0].eval.split(" ").map(s => parseFloat(s))}
+                black={game.client_data[1].eval.split(" ").map(s => parseFloat(s))}
+                doLastBlack={game.fen.split(" ")[1] === "w"}
+                finished={game.finished}
+              ></EvalGraph>
+            </div>
           </div>
           <div className="flexExpand gameFlexSide"/>
         </div>
