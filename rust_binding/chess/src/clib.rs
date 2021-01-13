@@ -112,7 +112,7 @@ pub const BOARD_FLAGS_W_CASTLE_KING: u32 = 256;
 pub const BOARD_FLAGS_W_CASTLE_QUEEN: u32 = 512;
 pub const BOARD_FLAGS_B_CASTLE_KING: u32 = 1024;
 pub const BOARD_FLAGS_B_CASTLE_QUEEN: u32 = 2048;
-pub const MOVE_END: i32 = -1;
+pub const MOVE_END: u64 = 0xffffffffffffffff;
 pub type __u_char = ::std::os::raw::c_uchar;
 pub type __u_short = ::std::os::raw::c_ushort;
 pub type __u_int = ::std::os::raw::c_uint;
@@ -449,7 +449,7 @@ pub type bitboard = __chess_util_bitboard;
 #[doc = ""]
 #[doc = " Implemented as a bitboard index"]
 pub type board_pos = __chess_util_board_pos;
-#[link(name="chess-util")]
+#[link(name = "chess-util")]
 extern "C" {
     #[doc = " Check if the bit is set for the given square"]
     pub fn bitboard_check_square(board: bitboard, square: board_pos) -> ::std::os::raw::c_int;
