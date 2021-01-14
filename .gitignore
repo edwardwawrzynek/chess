@@ -10,3 +10,4 @@
 /rust_binding/Cargo.toml
 /rust_binding/Cargo.lock
 /rust_binding/target/
+/rust_binding/.cargo/

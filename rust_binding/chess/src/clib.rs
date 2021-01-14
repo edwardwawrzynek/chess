@@ -449,7 +449,7 @@ pub type bitboard = __chess_util_bitboard;
 #[doc = ""]
 #[doc = " Implemented as a bitboard index"]
 pub type board_pos = __chess_util_board_pos;
-#[link(name = "chess-util")]
+#[link(name = "chess-util", kind="static")]
 extern "C" {
     #[doc = " Check if the bit is set for the given square"]
     pub fn bitboard_check_square(board: bitboard, square: board_pos) -> ::std::os::raw::c_int;

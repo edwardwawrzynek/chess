@@ -1019,6 +1019,11 @@ int move_is_legal(move move_to_check, board *board) {
 }
 
 void move_gen_pregenerate() {
+#ifndef NDEBUG
+  printf("[chess-util] chess-util was built with assertions\n");
+#else
+  printf("[chess-util] chess-util was not built with assertions\n");
+#endif
   printf("[chess-util] beginning move generation pre-calculations\n");
   move_gen_init_knights();
   move_gen_init_kings();
