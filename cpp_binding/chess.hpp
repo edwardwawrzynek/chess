@@ -258,6 +258,17 @@ enum class PieceType {
   Queen = 5,
 };
 
+/**
+ * Convert a PieceType to a int representation.
+ * The resulting int has three bits.
+ */
+int PieceTypeToInternalValue(PieceType piece);
+
+/**
+ * Construct a PieceType from its int representation.
+ */
+PieceType PieceTypeFromInternalValue(int value);
+
 // forward declare
 class Board;
 
@@ -271,6 +282,16 @@ private:
   Move(uint64_t move);
 
 public:
+  /**
+   * Construct a new move from a source position, destination position, and promotion information.
+   * @param[src] src is the source square of the move (where the piece starts).
+   * @param[dst] dst is the destination square of the move (where the piece ends).
+   * @param[is_promote] is_promote should be true if the move is a pawn promotion.
+   * @param[promote_piece] promote_piece is the type of piece the pawn is being promoted to. If is_promote is false, promote_piece is ignored.
+   * @param[board] board is the board that the move will be later made on. This does not make the move -- it simply needs to know what board the move will be made on so it can encode extra information (capturing, castling, etc) in the returned Move.
+   */
+  Move(BoardPos src, BoardPos dst, bool is_promote, PieceType promote_piece, const Board& board);
+
   /**
    * Check if this move is the end of the move generator's legal moves.
    * If isEnd() is true, the move isn't legal -- it just represents that the move generator that made it is out of moves.

@@ -14,6 +14,14 @@ extern "C" {
 
 namespace chess {
 
+int PieceTypeToInternalValue(PieceType piece) {
+  return static_cast<int>(piece) & 7;
+}
+
+PieceType PieceTypeFromInternalValue(int value) {
+  return PieceType(value & 7);
+}
+
 BoardPos::BoardPos(uint8_t pos): pos(pos) {}
 
 BoardPos::BoardPos(int x, int y): pos(board_pos_from_xy(x, y)) {}
@@ -109,6 +117,11 @@ Move Move::fromInternalValue(uint64_t internal) { return Move(internal); }
 Move::Move(uint64_t move): move(move) {}
 
 uint64_t Move::getInternalValue() const { return move; }
+
+Move::Move(BoardPos src, BoardPos dst, bool is_promote, PieceType promote_piece,
+           const Board &board) {
+  move = move_new(src.getInternalValue(), dst.getInternalValue(), is_promote, static_cast<int>(promote_piece), board.getInternalValue());
+}
 
 Move MoveGenerator::nextMove() {
   return Move::fromInternalValue(move_gen_next_move(&gen));

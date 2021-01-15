@@ -7,6 +7,8 @@
 \doxysubsection*{Public Member Functions}
 \begin{DoxyCompactItemize}
 \item 
+\mbox{\hyperlink{classchess_1_1Move_a2b97e37e1294c19982f5381c40f1b12b}{Move}} (\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} src, \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} dst, bool is\+\_\+promote, \mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}} promote\+\_\+piece, const \mbox{\hyperlink{classchess_1_1Board}{Board}} \&board)
+\item 
 bool \mbox{\hyperlink{classchess_1_1Move_a5698d0d61f5fa59a49e4b4035f8598b6}{is\+End}} ()
 \item 
 \mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}} \mbox{\hyperlink{classchess_1_1Move_afc15eb5012a5e4e2a7c64fdb5f99d875}{source\+Square}} () const
@@ -44,6 +46,28 @@ static \mbox{\hyperlink{classchess_1_1Move}{Move}} {\bfseries from\+Internal\+Va
 
 \doxysubsection{Detailed Description}
 A move that can be made of a chessboard. \mbox{\hyperlink{classchess_1_1Move}{Move}} represents a half turn -- one player\textquotesingle{}s move. 
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\mbox{\Hypertarget{classchess_1_1Move_a2b97e37e1294c19982f5381c40f1b12b}\label{classchess_1_1Move_a2b97e37e1294c19982f5381c40f1b12b}} 
+\index{chess::Move@{chess::Move}!Move@{Move}}
+\index{Move@{Move}!chess::Move@{chess::Move}}
+\doxysubsubsection{\texorpdfstring{Move()}{Move()}}
+{\footnotesize\ttfamily chess\+::\+Move\+::\+Move (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{src,  }\item[{\mbox{\hyperlink{classchess_1_1BoardPos}{Board\+Pos}}}]{dst,  }\item[{bool}]{is\+\_\+promote,  }\item[{\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}}}]{promote\+\_\+piece,  }\item[{const \mbox{\hyperlink{classchess_1_1Board}{Board}} \&}]{board }\end{DoxyParamCaption})}
+
+Construct a new move from a source position, destination position, and promotion information. 
+\begin{DoxyParams}{Parameters}
+{\em \mbox{[}src\mbox{]}} & src is the source square of the move (where the piece starts). \\
+\hline
+{\em \mbox{[}dst\mbox{]}} & dst is the destination square of the move (where the piece ends). \\
+\hline
+{\em \mbox{[}is\+\_\+promote\mbox{]}} & is\+\_\+promote should be true if the move is a pawn promotion. \\
+\hline
+{\em \mbox{[}promote\+\_\+piece\mbox{]}} & promote\+\_\+piece is the type of piece the pawn is being promoted to. If is\+\_\+promote is false, promote\+\_\+piece is ignored. \\
+\hline
+{\em \mbox{[}board\mbox{]}} & board is the board that the move will be later made on. This does not make the move -- it simply needs to know what board the move will be made on so it can encode extra information (capturing, castling, etc) in the returned \mbox{\hyperlink{classchess_1_1Move}{Move}}. \\
+\hline
+\end{DoxyParams}
+
 
 \doxysubsection{Member Function Documentation}
 \mbox{\Hypertarget{classchess_1_1Move_a8ceab28ccca0b41f6786ca6a3cec0090}\label{classchess_1_1Move_a8ceab28ccca0b41f6786ca6a3cec0090}} 

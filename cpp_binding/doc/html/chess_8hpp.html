@@ -139,6 +139,10 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>chess::operator==</b>
 <tr class="memitem:a2b6582869997e2797186c5b5ce65fffa"><td class="memItemLeft" align="right" valign="top"><a id="a2b6582869997e2797186c5b5ce65fffa"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>chess::operator!=</b> (const Bitboard &amp;lhs, const Bitboard &amp;rhs)</td></tr>
 <tr class="separator:a2b6582869997e2797186c5b5ce65fffa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adfeda57997fe6eb1264c8686e87b16e5"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="chess_8hpp.html#adfeda57997fe6eb1264c8686e87b16e5">chess::PieceTypeToInternalValue</a> (PieceType piece)</td></tr>
+<tr class="separator:adfeda57997fe6eb1264c8686e87b16e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3b03288ab94df4fa9119147341dfc267"><td class="memItemLeft" align="right" valign="top">PieceType&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="chess_8hpp.html#a3b03288ab94df4fa9119147341dfc267">chess::PieceTypeFromInternalValue</a> (int value)</td></tr>
+<tr class="separator:a3b03288ab94df4fa9119147341dfc267"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3220f6624c3f51e4a824034c46c9680c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="chess_8hpp.html#a3220f6624c3f51e4a824034c46c9680c">chess::connectToServer</a> (std::string url, const std::string &amp;port, const std::string &amp;apikey, const std::string &amp;name, const std::function&lt; std::pair&lt; Move, std::unordered_map&lt; std::string, std::string &gt;&gt;(Board &amp;)&gt; &amp;function)</td></tr>
 <tr class="separator:a3220f6624c3f51e4a824034c46c9680c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
@@ -235,6 +239,44 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>chess::operator!=</b>
 </div><div class="memdoc">
 <p>Connect to a codekata chess server at the given url and port, send apikey and name, and block until the server requests a move.</p>
 <p>When a move is requested, function will be called. It will be passed the current board, and should return the move to make and a map of debug information to pass to the server (debug info can be empty) </p>
+
+</div>
+</div>
+<a id="a3b03288ab94df4fa9119147341dfc267"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3b03288ab94df4fa9119147341dfc267">&#9670;&nbsp;</a></span>PieceTypeFromInternalValue()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">PieceType chess::PieceTypeFromInternalValue </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Construct a PieceType from its int representation. </p>
+
+</div>
+</div>
+<a id="adfeda57997fe6eb1264c8686e87b16e5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adfeda57997fe6eb1264c8686e87b16e5">&#9670;&nbsp;</a></span>PieceTypeToInternalValue()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int chess::PieceTypeToInternalValue </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="chess_8hpp.html#a467a34711626b1e754ed31dd5c104666">PieceType</a>&#160;</td>
+          <td class="paramname"><em>piece</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Convert a PieceType to a int representation. The resulting int has three bits. </p>
 
 </div>
 </div>

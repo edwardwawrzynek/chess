@@ -61,6 +61,10 @@ bool {\bfseries chess\+::operator==} (const Bitboard \&lhs, const Bitboard \&rhs
 \mbox{\Hypertarget{chess_8hpp_a2b6582869997e2797186c5b5ce65fffa}\label{chess_8hpp_a2b6582869997e2797186c5b5ce65fffa}} 
 bool {\bfseries chess\+::operator!=} (const Bitboard \&lhs, const Bitboard \&rhs)
 \item 
+int \mbox{\hyperlink{chess_8hpp_adfeda57997fe6eb1264c8686e87b16e5}{chess\+::\+Piece\+Type\+To\+Internal\+Value}} (Piece\+Type piece)
+\item 
+Piece\+Type \mbox{\hyperlink{chess_8hpp_a3b03288ab94df4fa9119147341dfc267}{chess\+::\+Piece\+Type\+From\+Internal\+Value}} (int value)
+\item 
 void \mbox{\hyperlink{chess_8hpp_a3220f6624c3f51e4a824034c46c9680c}{chess\+::connect\+To\+Server}} (std\+::string url, const std\+::string \&port, const std\+::string \&apikey, const std\+::string \&name, const std\+::function$<$ std\+::pair$<$ Move, std\+::unordered\+\_\+map$<$ std\+::string, std\+::string $>$$>$(Board \&)$>$ \&function)
 \end{DoxyCompactItemize}
 
@@ -89,4 +93,16 @@ A player in a chess game
 
 Connect to a codekata chess server at the given url and port, send apikey and name, and block until the server requests a move.
 
-When a move is requested, function will be called. It will be passed the current board, and should return the move to make and a map of debug information to pass to the server (debug info can be empty) 
+When a move is requested, function will be called. It will be passed the current board, and should return the move to make and a map of debug information to pass to the server (debug info can be empty) \mbox{\Hypertarget{chess_8hpp_a3b03288ab94df4fa9119147341dfc267}\label{chess_8hpp_a3b03288ab94df4fa9119147341dfc267}} 
+\index{chess.hpp@{chess.hpp}!PieceTypeFromInternalValue@{PieceTypeFromInternalValue}}
+\index{PieceTypeFromInternalValue@{PieceTypeFromInternalValue}!chess.hpp@{chess.hpp}}
+\doxysubsubsection{\texorpdfstring{PieceTypeFromInternalValue()}{PieceTypeFromInternalValue()}}
+{\footnotesize\ttfamily Piece\+Type chess\+::\+Piece\+Type\+From\+Internal\+Value (\begin{DoxyParamCaption}\item[{int}]{value }\end{DoxyParamCaption})}
+
+Construct a Piece\+Type from its int representation. \mbox{\Hypertarget{chess_8hpp_adfeda57997fe6eb1264c8686e87b16e5}\label{chess_8hpp_adfeda57997fe6eb1264c8686e87b16e5}} 
+\index{chess.hpp@{chess.hpp}!PieceTypeToInternalValue@{PieceTypeToInternalValue}}
+\index{PieceTypeToInternalValue@{PieceTypeToInternalValue}!chess.hpp@{chess.hpp}}
+\doxysubsubsection{\texorpdfstring{PieceTypeToInternalValue()}{PieceTypeToInternalValue()}}
+{\footnotesize\ttfamily int chess\+::\+Piece\+Type\+To\+Internal\+Value (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{chess_8hpp_a467a34711626b1e754ed31dd5c104666}{Piece\+Type}}}]{piece }\end{DoxyParamCaption})}
+
+Convert a Piece\+Type to a int representation. The resulting int has three bits. 

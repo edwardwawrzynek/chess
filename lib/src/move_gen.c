@@ -442,32 +442,7 @@ void move_to_str(move move, char *res_str) {
   }
 }
 
-move move_from_str(const char *move_str, const board *board) {
-  // seperate src, dst, and promotion parts of string
-  char src_str[3];
-  memcpy(src_str, move_str, 2 * sizeof(char));
-  src_str[2] = '\0';
-  char dst_str[3];
-  memcpy(dst_str, move_str + 2, 2 * sizeof(char));
-  dst_str[2] = '\0';
-  // handle promotion char if present
-  int is_promote = 0;
-  char promote_char;
-  int promote_piece = -1;
-  if (move_str[4] != '\0') {
-    is_promote = 1;
-    promote_char = move_str[4];
-    for (int p = 0; p < 6; p++) {
-      if (promote_codes[p] == promote_char)
-        promote_piece = p;
-    }
-    if (promote_piece == -1) {
-      return MOVE_END;
-    }
-  }
-  // parse src + dst
-  board_pos src = board_pos_from_str(src_str);
-  board_pos dst = board_pos_from_str(dst_str);
+move move_new(board_pos src, board_pos dst, int is_promote, int promote_piece, const board *board) {
   // check for capturing
   int is_capture = 0;
   board_pos capture_pos = BOARD_POS_INVALID;
@@ -502,6 +477,36 @@ move move_from_str(const char *move_str, const board *board) {
 
   return construct_move(board->flags, src, dst, is_promote, promote_piece,
                         is_capture, capture_piece, capture_pos, is_castle);
+}
+
+move move_from_str(const char *move_str, const board *board) {
+  // separate src, dst, and promotion parts of string
+  char src_str[3];
+  memcpy(src_str, move_str, 2 * sizeof(char));
+  src_str[2] = '\0';
+  char dst_str[3];
+  memcpy(dst_str, move_str + 2, 2 * sizeof(char));
+  dst_str[2] = '\0';
+  // handle promotion char if present
+  int is_promote = 0;
+  char promote_char;
+  int promote_piece = -1;
+  if (move_str[4] != '\0') {
+    is_promote = 1;
+    promote_char = move_str[4];
+    for (int p = 0; p < 6; p++) {
+      if (promote_codes[p] == promote_char)
+        promote_piece = p;
+    }
+    if (promote_piece == -1) {
+      return MOVE_END;
+    }
+  }
+  // parse src + dst
+  board_pos src = board_pos_from_str(src_str);
+  board_pos dst = board_pos_from_str(dst_str);
+
+  return move_new(src, dst, is_promote, promote_piece, board);
 }
 
 bitboard board_is_square_attacked(const board *board, board_pos square,
@@ -1018,7 +1023,18 @@ int move_is_legal(move move_to_check, board *board) {
   return 0;
 }
 
+#if defined __has_attribute
+# if __has_attribute(constructor)
+  __attribute__ ((constructor))
+# endif
+#endif
 void move_gen_pregenerate() {
+  static int run = 0;
+  if(run) {
+    printf("[chess-util] move generation pre-calculations already ran\n");
+    return;
+  }
+  run = 1;
 #ifndef NDEBUG
   printf("[chess-util] chess-util was built with assertions\n");
 #else

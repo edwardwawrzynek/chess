@@ -347,6 +347,13 @@ void move_to_str(move move, char *res_str);
 move move_from_str(const char *move_str, const board *board);
 
 /**
+ * construct a move from a source square, destination square, and promotion info
+ * board is a legal board for the move to be later appiled on (but the move will not
+ * actually be made on it)
+ */
+move move_new(board_pos src, board_pos dst, int is_promote, int promote_piece, const board* board);
+
+/**
  * move_gen contains the state of the move generation algorithm */
 typedef struct __chess_util_move_gen move_gen;
 

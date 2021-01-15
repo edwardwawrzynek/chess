@@ -78,6 +78,8 @@ $(function() {
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
+<tr class="memitem:a2b97e37e1294c19982f5381c40f1b12b"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classchess_1_1Move.html#a2b97e37e1294c19982f5381c40f1b12b">Move</a> (<a class="el" href="classchess_1_1BoardPos.html">BoardPos</a> src, <a class="el" href="classchess_1_1BoardPos.html">BoardPos</a> dst, bool is_promote, <a class="el" href="chess_8hpp.html#a467a34711626b1e754ed31dd5c104666">PieceType</a> promote_piece, const <a class="el" href="classchess_1_1Board.html">Board</a> &amp;board)</td></tr>
+<tr class="separator:a2b97e37e1294c19982f5381c40f1b12b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5698d0d61f5fa59a49e4b4035f8598b6"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classchess_1_1Move.html#a5698d0d61f5fa59a49e4b4035f8598b6">isEnd</a> ()</td></tr>
 <tr class="separator:a5698d0d61f5fa59a49e4b4035f8598b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc15eb5012a5e4e2a7c64fdb5f99d875"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classchess_1_1BoardPos.html">BoardPos</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classchess_1_1Move.html#afc15eb5012a5e4e2a7c64fdb5f99d875">sourceSquare</a> () const</td></tr>
@@ -114,7 +116,64 @@ static <a class="el" href="classchess_1_1Move.html">Move</a>&#160;</td><td class
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>A move that can be made of a chessboard. <a class="el" href="classchess_1_1Move.html">Move</a> represents a half turn &ndash; one player's move. </p>
-</div><h2 class="groupheader">Member Function Documentation</h2>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a2b97e37e1294c19982f5381c40f1b12b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2b97e37e1294c19982f5381c40f1b12b">&#9670;&nbsp;</a></span>Move()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">chess::Move::Move </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classchess_1_1BoardPos.html">BoardPos</a>&#160;</td>
+          <td class="paramname"><em>src</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classchess_1_1BoardPos.html">BoardPos</a>&#160;</td>
+          <td class="paramname"><em>dst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>is_promote</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="chess_8hpp.html#a467a34711626b1e754ed31dd5c104666">PieceType</a>&#160;</td>
+          <td class="paramname"><em>promote_piece</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classchess_1_1Board.html">Board</a> &amp;&#160;</td>
+          <td class="paramname"><em>board</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Construct a new move from a source position, destination position, and promotion information. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">[src]</td><td>src is the source square of the move (where the piece starts). </td></tr>
+    <tr><td class="paramname">[dst]</td><td>dst is the destination square of the move (where the piece ends). </td></tr>
+    <tr><td class="paramname">[is_promote]</td><td>is_promote should be true if the move is a pawn promotion. </td></tr>
+    <tr><td class="paramname">[promote_piece]</td><td>promote_piece is the type of piece the pawn is being promoted to. If is_promote is false, promote_piece is ignored. </td></tr>
+    <tr><td class="paramname">[board]</td><td>board is the board that the move will be later made on. This does not make the move &ndash; it simply needs to know what board the move will be made on so it can encode extra information (capturing, castling, etc) in the returned <a class="el" href="classchess_1_1Move.html">Move</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
 <a id="a8ceab28ccca0b41f6786ca6a3cec0090"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8ceab28ccca0b41f6786ca6a3cec0090">&#9670;&nbsp;</a></span>capturePieceType()</h2>
 
