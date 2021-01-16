@@ -85,8 +85,12 @@ public:
   std::vector<std::unique_ptr<Game>> games;
   std::map<std::string, std::unique_ptr<Player>> players;
 
-  std::pair<std::pair<Player *, std::string>, std::pair<Player *, std::string>>
-  new_game();
+  Player * find_player_by_id(int id);
+
+  std::pair<Player *, std::string> new_player();
+
+  std::tuple<std::pair<Player *, std::string>, std::pair<Player *, std::string>, Game*>
+  new_game(const std::string &id0, const std::string &id1);
 
   void serialize(std::ostream &out, bool do_api_keys);
 

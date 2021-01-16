@@ -196,6 +196,19 @@ pub enum Player {
     Black = 1,
 }
 
+impl Player {
+    /// Convert an int (0 or 1) to a player
+    pub fn from_integral(int: u8) -> Player {
+        if int == 0 {
+            Player::White
+        } else if int == 1 {
+            Player::Black
+        } else {
+            panic!("int should be 0 or 1")
+        }
+    }
+}
+
 /// Piece type -- pawn, rook, knight, etc (not color)
 #[derive(FromPrimitive, PartialEq, Eq, Clone, Copy, Debug)]
 pub enum PieceType {
@@ -205,6 +218,27 @@ pub enum PieceType {
     Rook = 3,
     Bishop = 4,
     Queen = 5,
+}
+
+impl PieceType {
+    /// Convert an int (0 - 5) to a piece type
+    pub fn from_integral(int: u8) -> PieceType {
+        if int == 0 {
+            PieceType::King
+        } else if int == 1 {
+            PieceType::Pawn
+        } else if int == 2 {
+            PieceType::Knight
+        } else if int == 3 {
+            PieceType::Rook
+        } else if int == 4 {
+            PieceType::Bishop
+        } else if int == 5 {
+            PieceType::Queen
+        } else {
+            panic!("int must be 0 - 5")
+        }
+    }
 }
 
 /// A move that can be made on a [`Board`]

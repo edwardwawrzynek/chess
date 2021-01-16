@@ -7,6 +7,10 @@ body {
   scrollbar-width: thin;
 }
 
+p {
+  margin-left: 1rem;
+}
+
 .flex {
   display: flex;
 }
@@ -103,19 +107,23 @@ body {
 }
 
 .gameInfo {
-  height: 4.5rem;
-  font-size: 0.7rem;
-  margin-bottom: 0.3rem;
+  margin-top: 0.3rem;
 }
 
 .gameInfoDiv {
-  padding: 0.3rem;
+  padding: 0 0.3rem;
   width: 100%;
+  flex: 1 1 auto;
+}
+
+.gameInfoDiv:first-child {
+  margin-bottom: 0.3rem;
 }
 
 .gameStatus {
   margin-top: 0.5rem;
   text-align: center;
+  font-size: 0.9rem;
 }
 
 .evalGraph {
@@ -126,6 +134,17 @@ body {
 
 .gameInfoCont {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  margin-right: 0.5rem;
+  font-size: 0.7rem;
+  max-height: 200px;
+}
+
+.playerSelect {
+  display: inline-block;
+  width: 10rem;
+  margin: 0 0.3rem;
 }
 
 ::-webkit-scrollbar {
@@ -209,6 +228,10 @@ button, input[type=submit] {
   margin: 0 1rem 0 0;
 }
 
+.newgame-btn {
+  margin-left: 1rem;
+}
+
 .header-btns {
   margin: 0.5rem 0 0.5rem 1rem;
 }
@@ -265,6 +288,13 @@ button, input[type=submit] {
   margin-left: 0.5rem;
 }
 
+.client-info-expand:hover {
+  cursor: pointer;
+}
+
+.game-width-limit {
+  max-width: calc(100% - 4rem);
+}
 
 @media only screen and (max-width: 800px) {
   .flex {

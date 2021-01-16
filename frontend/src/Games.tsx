@@ -2,8 +2,13 @@ import React, { useEffect, useState, Fragment } from 'react';
 import BoardFENWrapper from './BoardFENWrapper';
 import BitboardInspect from './BitboardInspect';
 import EvalGraph from './EvalGraph';
+import UserControls from './UserControls';
+import PlayersTable from './PlayersTable';
+import GameUI from './GameUI';
+import Select from 'react-select';
+import { selectStyles } from './selectStyles';
 
-const API_URL = process.env.NODE_ENV === "development" ? 'ws://localhost:9001' : 'ws://codekata-chess.herokuapp.com:80';
+const API_URL = process.env.NODE_ENV === "development" ? 'ws://localhost:9001' : 'wss://codekata-chess.herokuapp.com';
 const TOURNAMENT_GAME_ORDERING = false;
 const ALLOW_NEW_GAME = true;
 const ALLOW_LOGIN = true;
@@ -36,7 +41,7 @@ function parseCommand(msg: string): Command[] {
   return cmdsAndArgs;
 }
 
-interface Player {
+export interface Player {
   id: number,
   name: string,
   apikey: string | null,
@@ -47,7 +52,7 @@ interface Player {
   cur_game_index: number,
 }
 
-interface Game {
+export interface Game {
   id: number,
   white_id: number,
   black_id: number,
@@ -59,7 +64,7 @@ interface Game {
   client_data: [{[key: string]: string}, {[key: string]: string}]
 }
 
-class GamesState {
+export class GamesState {
   players: {[key: number]: Player};
   games: {[key: number]: Game};
   curPlayerId: number | null;
@@ -142,17 +147,25 @@ class GamesState {
     const cmd_players: [number, string][] = [[Number(cmd[2]), cmd[3]], [Number(cmd[4]), cmd[5]]];
     cmd_players.forEach(([id, key]) => {
       if(id in this.players) {
+        let player = {
+          ...players[id],
+          apikey: key !== "-" ? key : null,
+        };
+        if(player.apikey === null && id in this.players && this.players[id].apikey !== null) {
+          player = {
+            ...player,
+            apikey: this.players[id].apikey,
+          };
+        }
+
         players = {
           ...players,
-          [id]: {
-            ...players[id],
-            apikey: key,
-          }
+          [id]: player
         };
       } else {
         const player = {
           id: id,
-          apikey: key,
+          apikey: key !== "-" ? key : null,
           name: "",
           wins: 0,
           losses: 0,
@@ -215,23 +228,26 @@ export interface GamesProps {
 
 export default function Games(props: GamesProps) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [connErr, setConnErr] = useState<string | null>(null);
   const [gamesState, setGamesState] = useState(new GamesState({}, {}, null));
-  const [curApiKey, setCurApiKey] = useState<string | null>(null);
-  const [apiLogin, setApiLogin] = useState<string>("");
-  const [changeName, setChangeName] = useState<string>("");
   const [showBitboardConstruct, setShowBitboardConstruct] = useState(false);
+
+  const [newgamePlayer0, setNewgamePlayer0] = useState("-");
+  const [newgamePlayer1, setNewgamePlayer1] = useState("-");
 
   useEffect(() => {
     const newSocket = new WebSocket(API_URL);
     newSocket.addEventListener("open", (event) => {
-      console.log("WebSocket opened");
       newSocket.send("observe");
+      setConnected(true);
     });
     newSocket.addEventListener("message", (event) => {
       handleServerMsg(event.data);
     });
     newSocket.addEventListener("error", (event) => {
       console.error("Websocket error: ", event);
+      setConnErr(event.type);
     });
     setSocket(newSocket);
     const intervalId = setInterval(() => {
@@ -258,34 +274,21 @@ export default function Games(props: GamesProps) {
     if(key === null) {
       return;
     }
-    setCurApiKey(key);
     socket?.send("apikey " + key);
     socket?.send("playerid");
   }
 
-  const playersElem = [];
-  for(const [id, player] of Object.entries(gamesState.players)) {
-    playersElem.push(
-      <tr key={id}>
-        <td className="playerName">{player.name}</td>
-        <td>{`${player.wins}-${player.losses}-${player.ties}`}</td>
-      </tr>
-    );
+  function setName(name: string) {
+    socket?.send("name " + name);
   }
 
-  const players = (
-    <table className="playersTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Score</th>
-        </tr>
-      </thead>
-      <tbody>
-        {playersElem}
-      </tbody>
-    </table>
-  );
+  function makeMove(move: string) {
+    socket?.send("move " + move);
+  }
+
+  function newgame() {
+    socket?.send(`newgame ${newgamePlayer0}, ${newgamePlayer1}`)
+  }
 
   // order game by id decreasing
   let gamesIDDec = [];
@@ -312,212 +315,28 @@ export default function Games(props: GamesProps) {
     games = gamesIDDec;
   }
 
-  const gamesElem: JSX.Element[] = [];
-  games.forEach((game) => {
-    const white = gamesState.players[game.white_id];
-    const black = gamesState.players[game.black_id];
-    const scoreStr = gamesState.gameScoreStr(game.id);
-    let status = "Not Started";
-    if(game.finished) {
-      status = `Score: ${scoreStr}`;
-    } else if(gamesState.gameIsActive(game.id)) {
-      status = game.fen.split(" ")[1] === "w" ? "White To Move" : "Black To Move";
-    }
-    gamesElem.push(
-      <div className="gameContainer" key={game.id} id={`game-${game.id}`}>
-        <div className="gameTitleContainer flex">
-          <div className="gameTitleLeft">
-            <div>{white.name}</div>
-            {white.apikey !== null &&
-              <Fragment>
-                <div className="apikey">API Key: {white.apikey}</div>
-                { curApiKey !== white.apikey ?
-                  <span 
-                    className="playAs"
-                    onClick={() => {playAs(white.apikey)}}
-                  >Play as this player</span>
-                  :
-                  <div className="apikey">
-                    Current Player
-                  </div>
-                }
-              </Fragment>
-            }
-          </div>
-          <div className="gameTitleCenter">
-            vs
-          </div>
-          <div className="gameTitleRight">
-            {black.name}
-            {black.apikey !== null &&
-              <Fragment>
-                <div className="apikey">API Key: {black.apikey}</div>
-                {curApiKey !== black.apikey ?
-                  <span
-                    className="playAs"
-                    onClick={() => {playAs(black.apikey)}}
-                  >Play as this player</span>
-                  :
-                  <div className="apikey">
-                    Current Player
-                  </div>
-                }
-              </Fragment>
-            }
-          </div>
-        </div>
-        <div className="flex">
-          <div className="flexExpand gameFlexSide"/>
-          <div>
-            <div className="flex">
-              <div className="flexExpand"></div>
-              <div className="gameBody">
-                <BoardFENWrapper 
-                  fen={game.fen}
-                  legal_moves={game.legal_moves}
-                  size={400}
-                  reversed={game.black_id === gamesState.curPlayerId}
-                  allow_moves={[game.white_id === gamesState.curPlayerId, game.black_id === gamesState.curPlayerId]}
-                  onMove={(move) => {
-                    socket?.send("move " + move + "\n");
-                  }}/>
-              </div>
-              <div className="gameMoves flex">
-                <table className="gameMovesTable roundedDiv scroll">
-                  <tbody>
-                    {game.moves.filter((e, i) => i % 2 === 0).map((e, i) => (
-                      <tr key={i}>
-                        <td className="moveNum">{i + 1}.</td>
-                        <td className="move">{game.moves[i * 2]}</td>
-                        {game.moves.length > (i * 2 + 1) &&
-                          <td className="move">{game.moves[i * 2 + 1]}</td>
-                        }
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="gameStatus roundedDiv">{status}</div>
-              </div>
-              <div className="flexExpand"></div>
-            </div>
-            <div className="flex">
-              <div className="gameInfoCont">
-                {game.client_data.map((data: {[key: string]: string}) => {
-                  const body = []
-                  for(const [key, value] of Object.entries(data)) {
-                    if(key === "eval") continue;
-                    body.push(
-                      <tr>
-                        <td className="playerName">{key}</td>
-                        <td>{value}</td>
-                      </tr>
-                    );
-                  }
-                  return (
-                    <div className="flex gameInfo">
-                      <div className="gameInfoDiv roundedDiv scroll">
-                        <table>
-                          <tbody>
-                            {body}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <EvalGraph 
-                width={300} 
-                height={9.3 * parseFloat(getComputedStyle(document.documentElement).fontSize)} 
-                white={game.client_data[0].eval.split(" ").map(s => parseFloat(s))}
-                black={game.client_data[1].eval.split(" ").map(s => parseFloat(s))}
-                doLastBlack={game.fen.split(" ")[1] === "w"}
-                finished={game.finished}
-              ></EvalGraph>
-            </div>
-          </div>
-          <div className="flexExpand gameFlexSide"/>
-        </div>
+  const playerSidebar = (
+    <>
+      <div className="currentPlayer">
+        <UserControls
+          state={gamesState}
+          allowLogin={ALLOW_LOGIN}
+          onSetKey={(key: string) => playAs(key)}
+          onSetName={(name: string) => setName(name)}
+        />
       </div>
-    );
-  });
+      <PlayersTable
+        state={gamesState}
+      />
+    </>
+  );
 
-  const gamesSidebarElems = [];
-  for(const [id, game] of Object.entries(gamesState.games)) {
-    const white = gamesState.players[game.white_id];
-    const black = gamesState.players[game.black_id];
-    const statusMsg = game.finished ? gamesState.gameScoreStr(game.id) : gamesState.gameIsActive(game.id) ? "In Progress" : "No Started";
-    gamesSidebarElems.push(
-      <tr key={id}>
-        <td className="playerName">{white.name} vs {black.name}</td>
-        <td>{statusMsg}</td>
-      </tr>
-    );
+  let playerSelectOptions = [{value: '-', label: 'New User'}];
+  for(const [id, player] of Object.entries(gamesState.players)) {
+    playerSelectOptions.push({value: player.id.toString(), label: player.name});
   }
 
-  const gamesSidebar = (
-    <table className="playersTable">
-      <thead>
-        <tr>
-          <th>Match</th>
-          <th>Outcome</th>
-        </tr>
-      </thead>
-      <tbody>
-        {gamesSidebarElems}
-      </tbody>
-    </table>
-  );
-
-  const playerSidebar = (
-    <Fragment>
-      <div className="currentPlayer">
-        {ALLOW_LOGIN &&
-          <Fragment>
-            <div className="playersFormLabel">Log In With API Key:</div>
-            <form 
-              className="flex formContainer"
-              onSubmit={(event) => {
-                playAs(apiLogin);
-                setApiLogin("");
-                event.preventDefault();
-              }}
-            >
-              <input type="text" value={apiLogin} onChange={(event) => {setApiLogin(event.target.value)}}></input>
-              <input type="submit" value="Go"></input>
-            </form>
-          </Fragment>
-        }
-        {gamesState.curPlayerId !== null &&
-          <Fragment>
-          <br/>
-          Current Player: <br/>
-            <div className="playersTitle">
-              {gamesState.players[gamesState.curPlayerId].name}
-            </div>
-            <div className="playersFormLabel">Change Name:</div>
-            <form 
-              className="flex formContainer"
-              onSubmit={(event) => {
-                socket?.send("name " + changeName);
-                setChangeName("");
-                event.preventDefault();
-              }}
-            >
-              <input type="text" value={changeName} onChange={(event) => {setChangeName(event.target.value)}}></input>
-              <input type="submit" value="Go"></input>
-            </form>
-          </Fragment>
-        }
-        </div>
-        <div className="playersTitle">Players</div>
-        {players}
-        <div className="playersTitle">Games</div>
-        {gamesSidebar}
-    </Fragment>
-  );
-
-  return (
+  const content = (
     <div className="gamesRootContainer flex">
       {showBitboardConstruct && 
         <BitboardInspect 
@@ -529,20 +348,65 @@ export default function Games(props: GamesProps) {
         </div>
         <div className="header-btns">
           {ALLOW_NEW_GAME && 
-            <button type="button" className="header-btn" onClick={() => {
-              socket?.send("newgame");
-            }}>New Game</button>
+            <>
+              New game between 
+              <Select
+                styles={selectStyles}
+                className="playerSelect"
+                options={playerSelectOptions}
+                value={playerSelectOptions.find(option => option.value === newgamePlayer0)}
+                onChange={(option) => {
+                  setNewgamePlayer0(option!!.value);
+                }}
+              />and
+              <Select
+                styles={selectStyles}
+                className="playerSelect"
+                options={playerSelectOptions}
+                value={playerSelectOptions.find(option => option.value === newgamePlayer1)}
+                onChange={(option) => {
+                  setNewgamePlayer1(option!!.value);
+                }}
+              /> 
+              <button type="button" className="header-btn newgame-btn" onClick={newgame}>Create</button>
+            </>
           }
-          <button type="button" className="header-btn" onClick={() => {
+        </div>
+        <div className="header-btns">
+        <button type="button" className="header-btn" onClick={() => {
             setShowBitboardConstruct(true);
           }}>Bitboard Construction Tool</button>
         </div>
-        {gamesElem}
+        {
+          games.map((game) => 
+            <GameUI
+              key={game.id}
+              state={gamesState}
+              gameId={game.id}
+              onSetKey={(key: string | null) => playAs(key)}
+              onMakeMove={(move: string) => makeMove(move)}
+            />
+          )
+        }
       </div>
       <div className="gameSidebarContainer">
         {playerSidebar}
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {!connected && connErr === null &&
+        <p>Connecting to Server ...</p>
+      }
+      {connErr !== null &&
+        <p>Error connecting to server: {connErr}</p>
+      }
+      {connected &&
+        content
+      }
+    </>
   );
 
 }

@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <uWebSockets/App.h>
 #include <ctime>
+#include <tuple>
 
 #include "AsyncFileReader.hpp"
 #include "AsyncFileStreamer.hpp"
@@ -192,26 +193,61 @@ void Player::serialize(std::ostream &out, const std::string &api_key,
   out << ", " << cur_game_index << "\n";
 }
 
-std::pair<std::pair<Player *, std::string>, std::pair<Player *, std::string>>
-State::new_game() {
-  auto key0 = get_apikey();
-  auto key1 = get_apikey();
+std::pair<Player *, std::string> State::new_player() {
+  auto key = get_apikey();
+  auto player = std::make_unique<Player>("Unnamed " + get_apikey().substr(0, 4), player_id++);
+  auto player_ptr = player.get();
 
-  auto player0 = std::make_unique<Player>(
-      "Unnamed " + get_apikey().substr(0, 4), player_id++);
-  auto player0_ptr = player0.get();
-  auto player1 = std::make_unique<Player>(
-      "Unnamed " + get_apikey().substr(0, 4), player_id++);
-  auto player1_ptr = player1.get();
-  auto game = std::make_unique<Game>(player0_ptr, player1_ptr, games.size());
-  player0->add_game(game.get());
-  player1->add_game(game.get());
+  players[key] = std::move(player);
+
+  return std::pair(player_ptr, key);
+}
+
+Player * State::find_player_by_id(int id) {
+  for(const auto& entry: players) {
+    if(entry.second->id == id) {
+      return entry.second.get();
+    }
+  }
+
+  return nullptr;
+}
+
+std::tuple<std::pair<Player *, std::string>, std::pair<Player *, std::string>, Game *>
+State::new_game(const std::string &id0, const std::string &id1) {
+  std::pair<Player *, std::string> p0;
+  std::pair<Player *, std::string> p1;
+  if(id0 == "-") {
+    p0 = new_player();
+  } else {
+    try {
+      p0 = std::pair(find_player_by_id(std::stoi(id0)), "-");
+    } catch (std::invalid_argument& e) {
+      return std::make_tuple(std::pair(nullptr, ""), std::pair(nullptr, ""), nullptr);
+    }
+  }
+  if(id1 == "-") {
+    p1 = new_player();
+  } else {
+    try {
+      p1 = std::pair(find_player_by_id(std::stoi(id1)), "-");
+    } catch (std::invalid_argument& e) {
+      return std::make_tuple(std::pair(nullptr, ""), std::pair(nullptr, ""), nullptr);
+    }
+  }
+
+  if(p0.first == nullptr || p1.first == nullptr) {
+    return std::make_tuple(p0, p1, nullptr);
+  }
+
+  auto game = std::make_unique<Game>(p0.first, p1.first, games.size());
+  auto game_ptr = game.get();
+  p0.first->add_game(game_ptr);
+  p1.first->add_game(game_ptr);
 
   games.push_back(std::move(game));
-  players[key0] = std::move(player0);
-  players[key1] = std::move(player1);
 
-  return std::pair(std::pair(player0_ptr, key0), std::pair(player1_ptr, key1));
+  return std::make_tuple(p0, p1, game_ptr);
 }
 
 void State::serialize(std::ostream &out, bool do_api_keys) {
@@ -390,22 +426,30 @@ int main(int argc, char *argv[]) {
                  // command: newgame
                  // create a new game and return api keys
                  else if (cmd[0] == "newgame") {
-                   auto res = state.new_game();
-                   state.update_cur_games();
-                   Game *game = res.first.first->get_cur_game();
-                   // send api keys back
-                   ws->send("newgame " + std::to_string(game->id) + ", " +
-                                std::to_string(res.first.first->id) + ", " +
-                                res.first.second + ", " +
-                                std::to_string(res.second.first->id) + ", " +
-                                res.second.second + "\n",
-                            opCode);
-                   // publish players + game
-                   std::ostringstream stream;
-                   res.first.first->serialize(stream, "", false);
-                   res.second.first->serialize(stream, "", false);
-                   game->serialize(stream);
-                   ws->publish("observe", stream.str());
+                   if(cmd.size() < 3) {
+                     ws->send("error expected 2 arguments to command newgame", opCode);
+                   } else {
+                    auto res = state.new_game(cmd[1], cmd[2]);
+                    if(std::get<0>(res).first == nullptr || std::get<1>(res).first == nullptr || std::get<2>(res) == nullptr) {
+                      ws->send("error invalid player ids", opCode);
+                    } else {
+                      state.update_cur_games();
+                      Game *game = std::get<2>(res);
+                      // send api keys back
+                      ws->send("newgame " + std::to_string(game->id) + ", " +
+                                    std::to_string(std::get<0>(res).first->id) + ", " +
+                                    std::get<0>(res).second + ", " +
+                                    std::to_string(std::get<1>(res).first->id) + ", " +
+                                    std::get<1>(res).second + "\n",
+                                opCode);
+                      // publish players + game
+                      std::ostringstream stream;
+                      std::get<0>(res).first->serialize(stream, "", false);
+                      std::get<1>(res).first->serialize(stream, "", false);
+                      game->serialize(stream);
+                      ws->publish("observe", stream.str());
+                    }
+                   }
                  }
                  // command: move move_str
                  // make the move on the last sent position
