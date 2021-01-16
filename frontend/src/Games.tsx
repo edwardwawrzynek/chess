@@ -85,7 +85,7 @@ export class GamesState {
       losses: Number(cmd[5]),
       ties: Number(cmd[6]),
       game_ids: cmd[7].split(" ").map((c) => Number(c)),
-      cur_game_index: Number(cmd[6]),
+      cur_game_index: Number(cmd[8]),
     };
     if(player.apikey === null && id in this.players && this.players[id].apikey !== null) {
       player = {

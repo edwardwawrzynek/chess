@@ -6,7 +6,7 @@ Standard rules are used, except that:
 - The fifty and seventy-five move rules aren't present
 
 This repository contains the following components:
-- A server to coordinate play between programs, along with a frontend for humans to interact with the server. The frontend is deployed at: [http://codekata-chess.herokuapp.com](http://codekata-chess.herokuapp.com).
+- A server to coordinate play between programs, along with a frontend for humans to interact with the server. The frontend is deployed at: [https://codekata-chess.herokuapp.com](https://codekata-chess.herokuapp.com).
   - If you want to interact directly with the server, open a websocket connection to ws://codekata-chess.herokuapp.com:80.
 - A C chess utility library with a fast legal move generator and other tools (`lib`)
   - the `perft_tests` testsuite (test driver: `utils/perft_test.c`)
@@ -14,9 +14,7 @@ This repository contains the following components:
 - C++, Go, and Rust bindings to the utility library (see below)
 
 ## Server and Frontend
-The server is deployed at [http://codekata-chess.herokuapp.com](http://codekata-chess.herokuapp.com). It is recommend to test your programs against this deployment. If you want to run the server locally, use the included `Dockerfile`.
-
-SSL is not configured for the frontend yet. If the frontend doesn't appear, make sure you aren't trying to access it over https.
+The server is deployed at [https://codekata-chess.herokuapp.com](https://codekata-chess.herokuapp.com). It is recommend to test your programs against this deployment. If you want to run the server locally, use the included `Dockerfile`.
 
 ## C Library
 The C library is located in `lib`. To build and install:

@@ -448,6 +448,9 @@ int main(int argc, char *argv[]) {
                       std::get<1>(res).first->serialize(stream, "", false);
                       game->serialize(stream);
                       ws->publish("observe", stream.str());
+                      // send current positions
+                      send_player_cur_position(std::get<0>(res).first, ws);
+                      send_player_cur_position(std::get<1>(res).first, ws);
                     }
                    }
                  }

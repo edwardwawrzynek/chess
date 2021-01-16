@@ -1,0 +1,13 @@
+/cmake-build-debug/
+/cmake-build-release/
+/.idea/
+/.vscode/
+/build/
+/frontend/node_modules/
+/frontend/.eslintcache
+/rust_binding/chess/target/
+/rust_binding/engine/
+/rust_binding/Cargo.toml
+/rust_binding/Cargo.lock
+/rust_binding/target/
+/rust_binding/.cargo/

@@ -34,7 +34,7 @@ export default function PlayersTable(props: PlayersTableProps) {
   for(const [id, game] of Object.entries(props.state.games)) {
     const white = props.state.players[game.white_id];
     const black = props.state.players[game.black_id];
-    const statusMsg = game.finished ? props.state.gameScoreStr(game.id) : props.state.gameIsActive(game.id) ? "In Progress" : "No Started";
+    const statusMsg = game.finished ? props.state.gameScoreStr(game.id) : props.state.gameIsActive(game.id) ? "In Progress" : "Not Started";
     gamesSidebarElems.push(
       <tr key={id}>
         <td className="playerName">{white.name} vs {black.name}</td>
