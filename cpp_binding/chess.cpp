@@ -240,7 +240,7 @@ void connectToServer(std::string url, const std::string& port, const std::string
       ws.read(msg);
       std::string msg_string = boost::beast::buffers_to_string(msg.data());
 
-      if(msg_string.starts_with("position")) {
+      if(msg_string.find("position") == 0) {
         std::string fen_board = msg_string.substr(msg_string.find(' ') + 1);
         auto board = Board(fen_board);
         // get move from function
@@ -256,7 +256,7 @@ void connectToServer(std::string url, const std::string& port, const std::string
           debug_out << dentry.first << " " << dentry.second << "`";
         }
         ws.write(boost::asio::buffer(debug_out.str()));
-      } else if (msg_string.starts_with("error")) {
+      } else if (msg_string.find("error") == 0) {
         std::cerr << "Error from server: " << msg_string << "\n";
       }
     }

@@ -287,6 +287,11 @@ impl Move {
     pub fn castle(self) -> bool {
         (unsafe { clib::move_is_castle(self.0) }) != 0
     }
+
+    /// Get the board flags stored in the move
+    pub fn board_flags(self) -> u16 {
+        (self.0 & 0xffff) as u16
+    }
 }
 
 impl Display for Move {
@@ -381,6 +386,11 @@ impl Board {
     /// Unapply a [`Move`] to the board
     pub fn unmake_move(&mut self, m: Move) {
         unsafe { clib::board_unmake_move(&mut self.0, m.0) }
+    }
+
+    /// Get the flags stored in the board
+    pub fn flags(&self) -> u16 {
+        self.0.flags
     }
 }
 
