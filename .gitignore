@@ -11,3 +11,7 @@
 /rust_binding/Cargo.lock
 /rust_binding/target/
 /rust_binding/.cargo/
+/server-rs/target/
+/server-rs/.cargo/
+/server-rs/.idea/
+/server-rs/.env
