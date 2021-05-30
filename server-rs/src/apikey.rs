@@ -1,26 +1,27 @@
 use crate::error::Error;
+use itertools::Itertools;
 use sha2::{Digest, Sha256};
 use std::convert::TryFrom;
+use std::fmt;
+use std::fmt::Write;
 use uuid::Uuid;
-use itertools::Itertools;
 
 const HEX_CHARS: [char; 16] = [
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
 ];
 
 /// A hashed api key (safe to store in db + otherwise expose)
+#[derive(PartialEq, Eq, Debug)]
 pub struct HashedApiKey([u8; 32]);
 
-impl ToString for HashedApiKey {
-    fn to_string(&self) -> String {
-        // convert to hex string
-        let mut res = String::new();
+impl fmt::Display for HashedApiKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for b in &self.0 {
-            res.push(HEX_CHARS[(b & 0x0f) as usize]);
-            res.push(HEX_CHARS[((b >> 4) & 0x0f) as usize]);
+            f.write_char(HEX_CHARS[(b & 0x0f) as usize])?;
+            f.write_char(HEX_CHARS[((b >> 4) & 0x0f) as usize])?;
         }
 
-        res
+        Ok(())
     }
 }
 
@@ -50,6 +51,7 @@ impl TryFrom<String> for HashedApiKey {
 }
 
 /// A non hashed api key (not safe to expose in db)
+#[derive(PartialEq, Eq, Debug)]
 pub struct ApiKey(Uuid);
 
 impl ApiKey {
@@ -69,17 +71,18 @@ impl ApiKey {
     }
 }
 
-impl ToString for ApiKey {
-    fn to_string(&self) -> String {
-        format!("{}", self.0.simple())
+impl fmt::Display for ApiKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0.simple())
     }
 }
 
-impl From<&str> for ApiKey {
-    fn from(str: &str) -> ApiKey {
+impl TryFrom<&str> for ApiKey {
+    type Error = Error;
+    fn try_from(str: &str) -> Result<ApiKey, Self::Error> {
         match Uuid::parse_str(str) {
-            Ok(uuid) => ApiKey(uuid),
-            Err(_) => ApiKey(Uuid::nil()),
+            Ok(uuid) => Ok(ApiKey(uuid)),
+            Err(_) => Err(Error::MalformedApiKey),
         }
     }
 }

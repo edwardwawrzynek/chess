@@ -1,72 +1,74 @@
-use crate::schema::users;
-use crate::diesel::prelude::*;
-use crate::models::{User, NewUser, UserId};
 use crate::apikey::ApiKey;
+use crate::diesel::prelude::*;
 use crate::error::Error;
-use diesel::pg::PgConnection;
-use dotenv::dotenv;
-use std::env;
+use crate::models::{NewUser, User, UserId};
+use crate::schema::users;
 use bcrypt;
+use diesel::pg::PgConnection;
+use diesel::r2d2::{ConnectionManager, Pool, PoolError, PooledConnection};
 
 impl User {
     pub fn check_password(&self, password: &str) -> bool {
         match self.password_hash.as_deref() {
             None => false,
-            Some(hash) => {
-                match bcrypt::verify(password.as_bytes(), &hash) {
-                    Ok(true) => true,
-                    _ => false
-                }
-            }
+            Some(hash) => match bcrypt::verify(password.as_bytes(), &hash) {
+                Ok(true) => true,
+                _ => false,
+            },
         }
     }
 }
 
-pub fn make_db_conn() -> PgConnection {
-    dotenv().ok();
+pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 
-    let database_url = env::var("DATABASE_URL")
-        .expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .expect(&format!("Error connecting to {}", database_url))
+pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
+    let manage = ConnectionManager::<PgConnection>::new(db_url);
+    Pool::builder().build(manage)
 }
 
 /// A database connection wrapper, which associates the database with functions to manipulate it
-pub struct DBWrapper(PgConnection);
+pub struct DBWrapper(PooledConnection<ConnectionManager<PgConnection>>);
 
 impl DBWrapper {
-    /// Connect to the database and return a DBWrapper around that connection
-    pub fn new() -> DBWrapper {
-        DBWrapper(make_db_conn())
-    }
-
     /// Wrap an existing pg connection
-    pub fn from_pg_connection(db: PgConnection) -> DBWrapper {
-        DBWrapper(db)
+    pub fn from_pg_pool(pool: &PgPool) -> Result<DBWrapper, Error> {
+        Ok(DBWrapper(pool.get()?))
     }
 
     /// Lookup a user with the given id
     pub fn find_user(&self, id: UserId) -> Result<User, Error> {
-        match users::dsl::users.find(id).first::<User>(&self.0).optional()? {
+        match users::dsl::users
+            .find(id)
+            .first::<User>(&self.0)
+            .optional()?
+        {
             Some(user) => Ok(user),
-            None => Err(Error::NoSuchUser)
+            None => Err(Error::NoSuchUser),
         }
     }
 
     /// Lookup user by api key
-    pub fn find_user_by_apikey(&self, key: ApiKey) -> Result<User, Error> {
+    pub fn find_user_by_apikey(&self, key: &ApiKey) -> Result<User, Error> {
         let hashed = key.hash();
-        match users::dsl::users.filter(users::dsl::api_key_hash.eq(hashed.to_string())).first::<User>(&self.0).optional()? {
+        match users::dsl::users
+            .filter(users::dsl::api_key_hash.eq(hashed.to_string()))
+            .first::<User>(&self.0)
+            .optional()?
+        {
             Some(user) => Ok(user),
-            None => Err(Error::InvalidApiKey)
+            None => Err(Error::InvalidApiKey),
         }
     }
 
     /// Lookup user by email
     fn find_user_by_email(&self, email: &str) -> Result<User, Error> {
-        match users::dsl::users.filter(users::dsl::email.eq(email)).first::<User>(&self.0).optional()? {
+        match users::dsl::users
+            .filter(users::dsl::email.eq(email))
+            .first::<User>(&self.0)
+            .optional()?
+        {
             Some(user) => Ok(user),
-            None => Err(Error::IncorrectCredentials)
+            None => Err(Error::NoSuchUser),
         }
     }
 
@@ -75,13 +77,15 @@ impl DBWrapper {
         let user = self.find_user_by_email(email)?;
         match user.check_password(pass) {
             true => Ok(user),
-            false => Err(Error::IncorrectCredentials)
+            false => Err(Error::IncorrectCredentials),
         }
     }
 
     /// Insert a new user into the db
     fn insert_user(&self, user: NewUser) -> Result<User, Error> {
-        Ok(diesel::insert_into(users::table).values(&user).get_result::<User>(&self.0)?)
+        Ok(diesel::insert_into(users::table)
+            .values(&user)
+            .get_result::<User>(&self.0)?)
     }
 
     /// Create a new user with given info
@@ -99,7 +103,7 @@ impl DBWrapper {
                     api_key_hash: &*ApiKey::new().hash().to_string(),
                 };
                 self.insert_user(user)
-            },
+            }
             Err(err) => Err(err),
         }
     }
@@ -118,7 +122,9 @@ impl DBWrapper {
 
     /// Update a user already in the db
     pub fn save_user(&self, user: &User) -> Result<(), Error> {
-        diesel::update(users::dsl::users.find(user.id)).set(user).execute(&self.0)?;
+        diesel::update(users::dsl::users.find(user.id))
+            .set(user)
+            .execute(&self.0)?;
         Ok(())
     }
 }
