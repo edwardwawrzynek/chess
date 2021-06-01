@@ -15,6 +15,7 @@ mod error;
 mod models;
 mod schema;
 mod server;
+mod games;
 
 #[tokio::main]
 async fn main() {

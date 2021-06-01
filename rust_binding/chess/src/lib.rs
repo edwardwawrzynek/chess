@@ -3,7 +3,7 @@ use num_traits::FromPrimitive;
 use std::collections::HashMap;
 use std::ffi;
 use std::fmt;
-use std::fmt::Display;
+use std::fmt::{Display, Debug};
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl, Shr};
 use tungstenite::{connect, Message};
 use url::Url;
@@ -292,6 +292,26 @@ impl Move {
     pub fn board_flags(self) -> u16 {
         (self.0 & 0xffff) as u16
     }
+
+    /// Construct a move from a string in long algebraic notation, or return None if the move string is malformed
+    pub fn from_str(move_str: &str, board: &Board) -> Option<Move> {
+        unsafe {
+            if clib::move_str_is_wellformed(ffi::CString::new(move_str)
+                .expect("Cstring::new failed")
+                .as_ptr()) != 0 {
+                Some(Move(clib::move_from_str(ffi::CString::new(move_str)
+                                                  .expect("Cstring::new failed")
+                                                  .as_ptr(), &board.0)))
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Check if this move is legal to be applied on a board
+    pub fn is_legal(self, board: &mut Board) -> bool {
+        unsafe { clib::move_is_legal(self.0, &mut board.0) != 0 }
+    }
 }
 
 impl Display for Move {
@@ -305,6 +325,15 @@ impl Display for Move {
 
 /// The state of a chess game. Board contains the layout of pieces and whose turn it is to move.
 pub struct Board(clib::board);
+
+impl PartialEq for Board {
+    fn eq(&self, other: &Board) -> bool {
+        // TODO: this can be checked more efficiently
+        self.to_string() == other.to_string()
+    }
+}
+
+impl Eq for Board {}
 
 impl Board {
     /// Create a board from FEN
@@ -392,6 +421,16 @@ impl Board {
     pub fn flags(&self) -> u16 {
         self.0.flags
     }
+
+    /// Check if the game is a stalemate
+    pub fn is_stalemate(&self) -> bool {
+        unsafe { clib::board_is_stalemate(&self.0) != 0}
+    }
+
+    /// Check if the game is a checkmate. If so, the player to move is checkmated, and has lost
+    pub fn is_checkmate(&self) -> bool {
+        unsafe { clib::board_is_checkmate(&self.0) != 0 }
+    }
 }
 
 impl Display for Board {
@@ -400,6 +439,12 @@ impl Display for Board {
         unsafe { clib::board_to_fen_str(&self.0, res.as_mut_ptr()) };
         let c_str = unsafe { ffi::CStr::from_ptr(res.as_ptr()) };
         write!(f, "{}", c_str.to_str().unwrap())
+    }
+}
+
+impl Debug for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self, f)
     }
 }
 

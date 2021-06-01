@@ -688,6 +688,11 @@ extern "C" {
     #[doc = " not actually be made on it)"]
     pub fn move_from_str(move_str: *const ::std::os::raw::c_char, board: *const board) -> move_;
 }
+extern "C" {
+    #[doc = " check if a move string is wellformed (corresponds to a chess move)"]
+    #[doc = " this does not check if the move is legal"]
+    pub fn move_str_is_wellformed(move_str: *const ::std::os::raw::c_char) -> ::std::os::raw::c_int;
+}
 #[doc = " move_gen contains the state of the move generation algorithm"]
 pub type move_gen = __chess_util_move_gen;
 extern "C" {
@@ -735,19 +740,19 @@ extern "C" {
     #[doc = " check if the player to move on the board the move_gen is associated with is"]
     #[doc = " in checkmate/stalemate this must be called after the move_gen has been"]
     #[doc = " exhausted (all moves generated, MOVE_END returned)"]
-    pub fn move_gen_is_checkmate(move_gen: *mut move_gen) -> ::std::os::raw::c_int;
+    pub fn move_gen_is_checkmate(move_gen: *const move_gen) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn move_gen_is_stalemate(move_gen: *mut move_gen) -> ::std::os::raw::c_int;
+    pub fn move_gen_is_stalemate(move_gen: *const move_gen) -> ::std::os::raw::c_int;
 }
 extern "C" {
     #[doc = " check if a board is checkmated or stalemated for the player to move"]
     #[doc = " move_gen_is_checkmate and move_gen_is_stalemate are faster if you have"]
     #[doc = " already run a move_gen"]
-    pub fn board_is_checkmate(board: *mut board) -> ::std::os::raw::c_int;
+    pub fn board_is_checkmate(board: *const board) -> ::std::os::raw::c_int;
 }
 extern "C" {
-    pub fn board_is_stalemate(board: *mut board) -> ::std::os::raw::c_int;
+    pub fn board_is_stalemate(board: *const board) -> ::std::os::raw::c_int;
 }
 extern "C" {
     #[doc = " check if two moves are the same move"]

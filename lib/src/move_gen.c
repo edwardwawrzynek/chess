@@ -479,6 +479,34 @@ move move_new(board_pos src, board_pos dst, int is_promote, int promote_piece, c
                         is_capture, capture_piece, capture_pos, is_castle);
 }
 
+static int file_wellformed(char file) {
+  return (file >= 'a' && file <= 'h') || (file >= 'A' && file <= 'H');
+}
+
+static int rank_wellformed(char rank) {
+  return rank >= '1' && rank <= '8';
+}
+
+static int promote_wellformed(char promote) {
+  return promote == 'n' || promote == 'r' || promote == 'b' || promote == 'q';
+}
+
+int move_str_is_wellformed(const char *move_str) {
+  if(strlen(move_str) != 4 && strlen(move_str) != 5) {
+    return 0;
+  }
+  if(!file_wellformed(move_str[0]) || !rank_wellformed(move_str[1])) {
+    return 0;
+  }
+  if(!file_wellformed(move_str[2]) || !rank_wellformed(move_str[3])) {
+    return 0;
+  }
+  if (strlen(move_str) == 5 && !promote_wellformed(move_str[4])) {
+    return 0;
+  }
+  return 1;
+}
+
 move move_from_str(const char *move_str, const board *board) {
   // separate src, dst, and promotion parts of string
   char src_str[3];
@@ -947,7 +975,7 @@ move move_gen_make_next_move(move_gen *generator) {
   return move_gen_next(generator, 0);
 }
 
-int move_gen_is_checkmate(move_gen *move_gen) {
+int move_gen_is_checkmate(move_gen *const move_gen) {
   if (!move_gen->done) {
     fprintf(stderr, "[chess-util]: error: move_gen_is_checkmate can only be "
                     "called once the move_gen has been fully exhausted\n");
@@ -956,7 +984,7 @@ int move_gen_is_checkmate(move_gen *move_gen) {
   return move_gen->done == MOVE_DONE_CHECKMATE;
 }
 
-int move_gen_is_stalemate(move_gen *move_gen) {
+int move_gen_is_stalemate(move_gen *const move_gen) {
   if (!move_gen->done) {
     fprintf(stderr, "[chess-util]: error: move_gen_is_stalemate can only be "
                     "called once the move_gen has been fully exhausted\n");
@@ -965,18 +993,18 @@ int move_gen_is_stalemate(move_gen *move_gen) {
   return move_gen->done == MOVE_DONE_STALEMATE;
 }
 
-int board_is_checkmate(board *board) {
+int board_is_checkmate(board *const board_to_check) {
   move_gen gen;
-  move_gen_init(&gen, board);
+  move_gen_init(&gen, (board *)board_to_check);
   move move;
   while ((move = move_gen_next_move(&gen)) != MOVE_END)
     ;
   return move_gen_is_checkmate(&gen);
 }
 
-int board_is_stalemate(board *board) {
+int board_is_stalemate(board *const board_to_check) {
   move_gen gen;
-  move_gen_init(&gen, board);
+  move_gen_init(&gen, (board*)board_to_check);
   move move;
   while ((move = move_gen_next_move(&gen)) != MOVE_END)
     ;

@@ -347,6 +347,12 @@ void move_to_str(move move, char *res_str);
 move move_from_str(const char *move_str, const board *board);
 
 /**
+ * check if a move string is wellformed (corresponds to a chess move)
+ * this does not check if the move is legal
+ */
+int move_str_is_wellformed(const char *move_str);
+
+/**
  * construct a move from a source square, destination square, and promotion info
  * board is a legal board for the move to be later appiled on (but the move will not
  * actually be made on it)
@@ -400,16 +406,16 @@ void board_unmake_move(board *board, move move);
  * in checkmate/stalemate this must be called after the move_gen has been
  * exhausted (all moves generated, MOVE_END returned)
  */
-int move_gen_is_checkmate(move_gen *move_gen);
-int move_gen_is_stalemate(move_gen *move_gen);
+int move_gen_is_checkmate(move_gen *const move_gen);
+int move_gen_is_stalemate(move_gen *const move_gen);
 
 /**
  * check if a board is checkmated or stalemated for the player to move
  * move_gen_is_checkmate and move_gen_is_stalemate are faster if you have
  * already run a move_gen
  */
-int board_is_checkmate(board *board);
-int board_is_stalemate(board *board);
+int board_is_checkmate(board *const board);
+int board_is_stalemate(board *const board);
 
 /**
  * check if two moves are the same move

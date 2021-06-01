@@ -160,8 +160,8 @@ mod tests {
         assert_eq!(
             ServerCommand::SelfUserInfo {
                 id: 5,
-                name: "user",
-                email: "sample@example.com"
+                name: "user".to_string(),
+                email: Some("sample@example.com".to_string()),
             }
             .to_string(),
             "self_user_info 5, user, sample@example.com"
