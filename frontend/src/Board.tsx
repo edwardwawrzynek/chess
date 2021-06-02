@@ -20,6 +20,7 @@ export interface BoardProps {
   moves: ParsedMove[],
   allow_moves: [boolean, boolean],
   moveCallback: (move: ParsedMove) => void,
+  last_move: ParsedMove | undefined
 }
 
 const piece_icons: {[theme: string]: {[piece: string]: HTMLImageElement}} = {
@@ -127,12 +128,20 @@ export default function Board(props: BoardProps) {
       for(let y = 0; y < 8; y++) {
         const [dis_x, dis_y] = posToDisplayXY(x, y);
         let back_color = dis_x % 2 === dis_y % 2 ? props.theme.square1color : props.theme.square2color;
-        // color curSquare
-        if(curSquare != null && curSquare[0] === x && curSquare[1] === y) {
-          back_color = props.theme.cur_square_color;
-        }
         context.fillStyle = back_color;
         context.fillRect(x_off + dis_x * square_size, y_off + dis_y * square_size, square_size, square_size);
+        // color curSquare
+        if(curSquare !== null && curSquare[0] === x && curSquare[1] === y) {
+          context.fillStyle = props.theme.cur_square_color;
+          context.fillRect(x_off + dis_x * square_size, y_off + dis_y * square_size, square_size, square_size);
+        }
+        // color last move's src and dst
+        else if (curSquare === null && props.last_move !== undefined) {
+          if((x === props.last_move[0][0] && y === props.last_move[0][1]) || (x === props.last_move[1][0] && y === props.last_move[1][1])) {
+            context.fillStyle = props.theme.cur_square_color;
+            context.fillRect(x_off + dis_x * square_size, y_off + dis_y * square_size, square_size, square_size);
+          }
+        }
         // draw piece
         const piece = props.pieces[y][x];
         if(piece !== "") {

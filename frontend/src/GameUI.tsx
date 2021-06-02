@@ -138,6 +138,7 @@ export default function GameUI(props: GameUIProps) {
                 <BoardFENWrapper 
                   fen={game.fen}
                   legal_moves={game.legal_moves}
+                  last_move={game.moves.length > 0 ? game.moves[game.moves.length - 1] : undefined}
                   size={400}
                   reversed={game.black_id === props.state.curPlayerId}
                   allow_moves={[game.white_id === props.state.curPlayerId, game.black_id === props.state.curPlayerId]}

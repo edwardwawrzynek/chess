@@ -58,12 +58,13 @@ export interface BoardFENWrapperProps {
   reversed: boolean,
   allow_moves: [boolean, boolean],
   onMove: (move: string) => void,
+  last_move: string | undefined,
 }
 
 const defaultTheme = {
   square1color: "#ffce9e",
   square2color: "#d18b47",
-  cur_square_color: "yellow",
+  cur_square_color: "rgba(255, 255, 0, 0.5)",
   moves_hint_color: "rgba(80, 80, 80, 0.3)",
   icon_name: "default",
   rank_file_text_color: "white",
@@ -74,6 +75,7 @@ const defaultTheme = {
 export default function BoardFENWrapper(props: BoardFENWrapperProps) {
   const [pieces, player] = parseFen(props.fen);
   const moves = props.legal_moves.map(parseMoveStr);
+  const last_move = props.last_move === undefined ? undefined : parseMoveStr(props.last_move);
 
   return (
     <Board 
@@ -84,6 +86,8 @@ export default function BoardFENWrapper(props: BoardFENWrapperProps) {
       player={player} 
       moves={moves}
       allow_moves={props.allow_moves}
-      moveCallback={(move) => { props.onMove(parsedMoveToMoveStr(move)); }} />
+      moveCallback={(move) => { props.onMove(parsedMoveToMoveStr(move)); }}
+      last_move={last_move} 
+    />
   );
 }
