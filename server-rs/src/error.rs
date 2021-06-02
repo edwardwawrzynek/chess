@@ -26,6 +26,12 @@ pub enum Error {
     ClientTxChannelClosed(mpsc::TrySendError<Message>),
     MessageParseError,
     NotLoggedIn,
+    NoSuchGame,
+    AlreadyInGame,
+    GameAlreadyStarted,
+    DontOwnGame,
+    InvalidNumberOfPlayers,
+    NotInGame,
 }
 
 impl PartialEq for Error {
@@ -96,6 +102,30 @@ impl PartialEq for Error {
                 NotLoggedIn => true,
                 _ => false,
             },
+            NoSuchGame => match other {
+                NoSuchGame => true,
+                _ => false,
+            },
+            AlreadyInGame => match other {
+                AlreadyInGame => true,
+                _ => false,
+            },
+            DontOwnGame => match other {
+                DontOwnGame => true,
+                _ => false,
+            },
+            GameAlreadyStarted => match other {
+                GameAlreadyStarted => true,
+                _ => false,
+            },
+            InvalidNumberOfPlayers => match other {
+                InvalidNumberOfPlayers => true,
+                _ => false,
+            },
+            NotInGame => match other {
+                NotInGame => true,
+                _ => false,
+            },
         }
     }
 }
@@ -152,6 +182,12 @@ impl fmt::Display for Error {
                 "couldn't parse client command as text (make sure to use utf-8 encoded messages)"
             ),
             NotLoggedIn => write!(f, "you are not logged in"),
+            NoSuchGame => write!(f, "no such game"),
+            AlreadyInGame => write!(f, "you are already in that game"),
+            GameAlreadyStarted => write!(f, "that game has already started"),
+            DontOwnGame => write!(f, "you aren't the owner of that game"),
+            InvalidNumberOfPlayers => write!(f, "invalid number of players joined to start game"),
+            NotInGame => write!(f, "you aren't a player in that game"),
         }
     }
 }

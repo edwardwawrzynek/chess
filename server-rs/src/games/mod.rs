@@ -1,13 +1,13 @@
-use std::fmt;
 use crate::models::UserId;
 use std::collections::HashMap;
+use std::fmt;
 use std::fmt::Debug;
 
-mod chess_game;
+pub mod chess_game;
 
 /// A type of game that can be played by the server.
-/// `Game` represents the type of game, not a specific instance of that game.
-pub trait Game {
+/// `GameType` represents the type of game, not a specific instance of that game.
+pub trait GameType: Send + Sync {
     /// Create an instance of this game from it's serialized representation.
     fn deserialize(&self, data: &str, players: &[UserId]) -> Option<Box<dyn GameInstance>>;
 
@@ -29,7 +29,7 @@ pub enum GameTurn {
 pub enum GameState {
     InProgress,
     Win(UserId),
-    Tie
+    Tie,
 }
 
 pub type GameScore = HashMap<UserId, f64>;
@@ -51,10 +51,13 @@ pub trait GameInstance {
 }
 
 // Utility to be able to use serialize methods
-pub struct Fmt<F>(pub F) where F: Fn(&mut fmt::Formatter) -> fmt::Result;
+pub struct Fmt<F>(pub F)
+where
+    F: Fn(&mut fmt::Formatter) -> fmt::Result;
 
 impl<F> fmt::Display for Fmt<F>
-    where F: Fn(&mut fmt::Formatter) -> fmt::Result
+where
+    F: Fn(&mut fmt::Formatter) -> fmt::Result,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         (self.0)(f)

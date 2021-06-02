@@ -1,8 +1,11 @@
-use super::schema::users;
+use super::schema::{game_players, games, users};
 
 pub type UserId = i32;
+pub type GameId = i32;
+pub type GamePlayerId = i32;
 
 #[derive(Queryable, AsChangeset)]
+#[table_name = "users"]
 pub struct User {
     pub id: UserId,
     pub email: Option<String>,
@@ -20,4 +23,44 @@ pub struct NewUser<'a> {
     pub is_admin: bool,
     pub password_hash: Option<&'a str>,
     pub api_key_hash: &'a str,
+}
+
+#[derive(Queryable, AsChangeset)]
+#[table_name = "games"]
+pub struct DBGame {
+    pub id: GameId,
+    pub owner_id: UserId,
+    pub game_type: String,
+    pub state: Option<String>,
+    pub finished: bool,
+    pub winner: Option<UserId>,
+    pub is_tie: Option<bool>,
+}
+
+#[derive(Insertable)]
+#[table_name = "games"]
+pub struct NewDBGame<'a> {
+    pub owner_id: UserId,
+    pub game_type: &'a str,
+    pub state: Option<&'a str>,
+    pub finished: bool,
+    pub winner: Option<UserId>,
+    pub is_tie: Option<bool>,
+}
+
+#[derive(Queryable, AsChangeset)]
+#[table_name = "game_players"]
+pub struct GamePlayer {
+    pub id: GamePlayerId,
+    pub user_id: UserId,
+    pub game_id: GameId,
+    pub score: Option<f64>,
+}
+
+#[derive(Insertable)]
+#[table_name = "game_players"]
+pub struct NewGamePlayer {
+    pub user_id: UserId,
+    pub game_id: GameId,
+    pub score: Option<f64>,
 }

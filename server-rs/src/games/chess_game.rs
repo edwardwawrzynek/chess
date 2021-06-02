@@ -1,8 +1,8 @@
-use crate::games::{Game, GameInstance, GameTurn, GameState, GameScore};
-use chess;
+use crate::games::{GameInstance, GameScore, GameState, GameTurn, GameType};
 use crate::models::UserId;
-use std::fmt;
+use chess;
 use std::collections::HashMap;
+use std::fmt;
 
 // chess board starting position
 static DEFAULT_BOARD: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -10,10 +10,10 @@ static DEFAULT_BOARD: &'static str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBN
 #[derive(Debug)]
 pub struct ChessGame();
 
-impl Game for ChessGame {
+impl GameType for ChessGame {
     fn deserialize(&self, data: &str, players: &[UserId]) -> Option<Box<dyn GameInstance>> {
         if players.len() != 2 {
-            return None
+            return None;
         }
 
         // serialization format: fen,[move0,move1,move2]
@@ -29,7 +29,7 @@ impl Game for ChessGame {
                 board: chess::Board::new(fen),
                 moves,
                 white: players[0],
-                black: players[1]
+                black: players[1],
             }))
         } else {
             None
@@ -40,7 +40,12 @@ impl Game for ChessGame {
         if players.len() != 2 {
             None
         } else {
-            Some(Box::new(ChessGameInstance { board: chess::Board::new(DEFAULT_BOARD), moves: Vec::new(), white: players[0], black: players[1] }))
+            Some(Box::new(ChessGameInstance {
+                board: chess::Board::new(DEFAULT_BOARD),
+                moves: Vec::new(),
+                white: players[0],
+                black: players[1],
+            }))
         }
     }
 }
@@ -60,7 +65,7 @@ impl ChessGameInstance {
     fn chess_player_to_user(&self, player: chess::Player) -> UserId {
         match player {
             chess::Player::White => self.white,
-            chess::Player::Black => self.black
+            chess::Player::Black => self.black,
         }
     }
 
@@ -108,7 +113,7 @@ impl GameInstance for ChessGameInstance {
 
     fn make_move(&mut self, player: UserId, move_to_make: &str) -> Result<(), String> {
         if self.chess_player_to_user(self.board.player_to_move()) != player {
-            return Err("not player's turn".to_string())
+            return Err("not player's turn".to_string());
         }
 
         let chess_move = chess::Move::from_str(move_to_make, &self.board);
@@ -121,8 +126,8 @@ impl GameInstance for ChessGameInstance {
                 } else {
                     Err(format!("illegal move: {}", move_to_make))
                 }
-            },
-            None => Err(format!("malformed move: {}", move_to_make))
+            }
+            None => Err(format!("malformed move: {}", move_to_make)),
         }
     }
 
@@ -147,7 +152,7 @@ impl GameInstance for ChessGameInstance {
                     scores.insert(self.white, 0.5);
                     scores.insert(self.black, 0.5);
                     Some(scores)
-                },
+                }
                 GameState::Win(winner) => {
                     scores.insert(winner, 1.0);
                     scores.insert(self.other_user(winner), 0.0);
@@ -181,21 +186,45 @@ mod test {
     #[test]
     fn chess_serialize_test() {
         let game = ChessGame();
-        let instance = game.deserialize("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2,[e2e4,c7c5]", &vec![1,2]);
+        let instance = game.deserialize(
+            "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2,[e2e4,c7c5]",
+            &vec![1, 2],
+        );
         if let Some(mut instance) = instance {
             assert_eq!(instance.end_state(), Some(GameState::InProgress));
             assert_eq!(instance.scores(), None);
             assert_eq!(instance.turn(), GameTurn::Turn(1));
-            assert_eq!(format!("{}", Fmt(|f| instance.serialize(f))), "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2,[e2e4,c7c5]");
-            assert_eq!(format!("{}", Fmt(|f| instance.serialize_current(f))), "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2");
+            assert_eq!(
+                format!("{}", Fmt(|f| instance.serialize(f))),
+                "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2,[e2e4,c7c5]"
+            );
+            assert_eq!(
+                format!("{}", Fmt(|f| instance.serialize_current(f))),
+                "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2"
+            );
 
-            assert_eq!(instance.make_move(2, "e4e5"), Err("not player's turn".to_string()));
-            assert_eq!(instance.make_move(1, "j4e5"), Err("malformed move: j4e5".to_string()));
-            assert_eq!(instance.make_move(1, "e4e6"), Err("illegal move: e4e6".to_string()));
+            assert_eq!(
+                instance.make_move(2, "e4e5"),
+                Err("not player's turn".to_string())
+            );
+            assert_eq!(
+                instance.make_move(1, "j4e5"),
+                Err("malformed move: j4e5".to_string())
+            );
+            assert_eq!(
+                instance.make_move(1, "e4e6"),
+                Err("illegal move: e4e6".to_string())
+            );
             assert_eq!(instance.make_move(1, "e4e5"), Ok(()));
 
-            assert_eq!(format!("{}", Fmt(|f| instance.serialize(f))), "rnbqkbnr/pp1ppppp/8/2p1P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2,[e2e4,c7c5,e4e5]");
-            assert_eq!(format!("{}", Fmt(|f| instance.serialize_current(f))), "rnbqkbnr/pp1ppppp/8/2p1P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2");
+            assert_eq!(
+                format!("{}", Fmt(|f| instance.serialize(f))),
+                "rnbqkbnr/pp1ppppp/8/2p1P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2,[e2e4,c7c5,e4e5]"
+            );
+            assert_eq!(
+                format!("{}", Fmt(|f| instance.serialize_current(f))),
+                "rnbqkbnr/pp1ppppp/8/2p1P3/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2"
+            );
         } else {
             panic!("game should have parsed");
         }

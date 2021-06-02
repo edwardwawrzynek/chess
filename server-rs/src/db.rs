@@ -1,11 +1,15 @@
 use crate::apikey::ApiKey;
 use crate::diesel::prelude::*;
 use crate::error::Error;
-use crate::models::{NewUser, User, UserId};
-use crate::schema::users;
+use crate::games::{Fmt, GameInstance, GameState, GameTurn, GameType};
+use crate::models::{
+    DBGame, GameId, GamePlayer, GamePlayerId, NewGamePlayer, NewUser, User, UserId,
+};
+use crate::schema::{game_players, games, users};
 use bcrypt;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PoolError, PooledConnection};
+use std::collections::HashMap;
 
 impl User {
     pub fn check_password(&self, password: &str) -> bool {
@@ -19,6 +23,69 @@ impl User {
     }
 }
 
+// mapping from game type string to GameType
+pub type GameTypeMap = HashMap<&'static str, Box<dyn GameType>>;
+
+// in memory representation of a game
+pub struct Game {
+    id: GameId,
+    owner_id: UserId,
+    game_type: String,
+    instance: Option<Box<dyn GameInstance>>,
+}
+
+pub type GameAndPlayers = (Game, Vec<GamePlayer>);
+
+impl Game {
+    fn from_dbgame(game: DBGame, type_map: &GameTypeMap, players: &[GamePlayerId]) -> Game {
+        let instance = if let Some(ref state) = game.state {
+            type_map[&*game.game_type].deserialize(state, players)
+        } else {
+            None
+        };
+
+        Game {
+            id: game.id,
+            owner_id: game.owner_id,
+            game_type: game.game_type,
+            instance,
+        }
+    }
+
+    fn to_dbgame(&self) -> DBGame {
+        let (finished, winner, is_tie) = match &self.instance {
+            Some(instance) => match instance.turn() {
+                GameTurn::Finished => {
+                    if let Some(end_state) = instance.end_state() {
+                        match end_state {
+                            GameState::Win(uid) => (true, Some(uid), Some(false)),
+                            GameState::Tie => (true, None, Some(true)),
+                            GameState::InProgress => (false, None, None),
+                        }
+                    } else {
+                        (true, None, None)
+                    }
+                }
+                _ => (false, None, None),
+            },
+            None => (false, None, None),
+        };
+
+        DBGame {
+            id: self.id,
+            owner_id: self.owner_id,
+            game_type: self.game_type.clone(),
+            state: self
+                .instance
+                .as_ref()
+                .and_then(|i| Some(format!("{}", Fmt(|f| i.serialize(f))))),
+            finished,
+            winner,
+            is_tie,
+        }
+    }
+}
+
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 
 pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
@@ -27,19 +94,30 @@ pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
 }
 
 /// A database connection wrapper, which associates the database with functions to manipulate it
-pub struct DBWrapper(PooledConnection<ConnectionManager<PgConnection>>);
+pub struct DBWrapper<'a> {
+    db: PooledConnection<ConnectionManager<PgConnection>>,
+    game_type_map: &'a GameTypeMap,
+}
 
-impl DBWrapper {
+impl DBWrapper<'_> {
     /// Wrap an existing pg connection
-    pub fn from_pg_pool(pool: &PgPool) -> Result<DBWrapper, Error> {
-        Ok(DBWrapper(pool.get()?))
+    pub fn from_pg_pool<'a>(
+        pool: &PgPool,
+        type_map: &'a GameTypeMap,
+    ) -> Result<DBWrapper<'a>, Error> {
+        Ok(DBWrapper {
+            db: pool.get()?,
+            game_type_map: type_map,
+        })
     }
+
+    // ---- Users ----
 
     /// Lookup a user with the given id
     pub fn find_user(&self, id: UserId) -> Result<User, Error> {
         match users::dsl::users
             .find(id)
-            .first::<User>(&self.0)
+            .first::<User>(&self.db)
             .optional()?
         {
             Some(user) => Ok(user),
@@ -52,7 +130,7 @@ impl DBWrapper {
         let hashed = key.hash();
         match users::dsl::users
             .filter(users::dsl::api_key_hash.eq(hashed.to_string()))
-            .first::<User>(&self.0)
+            .first::<User>(&self.db)
             .optional()?
         {
             Some(user) => Ok(user),
@@ -64,7 +142,7 @@ impl DBWrapper {
     fn find_user_by_email(&self, email: &str) -> Result<User, Error> {
         match users::dsl::users
             .filter(users::dsl::email.eq(email))
-            .first::<User>(&self.0)
+            .first::<User>(&self.db)
             .optional()?
         {
             Some(user) => Ok(user),
@@ -85,7 +163,7 @@ impl DBWrapper {
     fn insert_user(&self, user: NewUser) -> Result<User, Error> {
         Ok(diesel::insert_into(users::table)
             .values(&user)
-            .get_result::<User>(&self.0)?)
+            .get_result::<User>(&self.db)?)
     }
 
     /// Create a new user with given info
@@ -124,7 +202,154 @@ impl DBWrapper {
     pub fn save_user(&self, user: &User) -> Result<(), Error> {
         diesel::update(users::dsl::users.find(user.id))
             .set(user)
-            .execute(&self.0)?;
+            .execute(&self.db)?;
         Ok(())
+    }
+
+    // ---- Games ----
+    /// Load a DBGame from the database
+    fn find_dbgame(&self, id: GameId) -> Result<DBGame, Error> {
+        match games::dsl::games
+            .find(id)
+            .first::<DBGame>(&self.db)
+            .optional()?
+        {
+            Some(game) => Ok(game),
+            None => Err(Error::NoSuchGame),
+        }
+    }
+
+    /// Load a game and it's players from the database
+    pub fn find_game(&self, id: GameId) -> Result<GameAndPlayers, Error> {
+        self.dbgame_to_game_and_players(self.find_dbgame(id)?, self.game_type_map)
+    }
+
+    /// Load all players in a game
+    pub fn find_game_players(&self, game_id: GameId) -> Result<Vec<GamePlayer>, Error> {
+        use game_players::dsl;
+        Ok(dsl::game_players
+            .filter(dsl::game_id.eq(game_id))
+            .load::<GamePlayer>(&self.db)?)
+    }
+
+    /// Convert a DBGame -> Game + GamePlayers
+    fn dbgame_to_game_and_players(
+        &self,
+        game: DBGame,
+        type_map: &GameTypeMap,
+    ) -> Result<GameAndPlayers, Error> {
+        let players = self.find_game_players(game.id)?;
+        let player_ids = (&players)
+            .iter()
+            .map(|p| p.user_id)
+            .collect::<Vec<UserId>>();
+        let game_mem = Game::from_dbgame(game, type_map, &*player_ids);
+        Ok((game_mem, players))
+    }
+
+    fn find_game_player(&self, game_id: GameId, user_id: UserId) -> Result<GamePlayer, Error> {
+        use game_players::dsl;
+        match dsl::game_players
+            .filter(dsl::game_id.eq(game_id).and(dsl::user_id.eq(user_id)))
+            .first::<GamePlayer>(&self.db)
+            .optional()?
+        {
+            Some(player) => Ok(player),
+            None => Err(Error::NotInGame),
+        }
+    }
+
+    /// Check if a user is a player in a game
+    fn user_in_game(&self, game_id: GameId, user_id: UserId) -> Result<bool, Error> {
+        match self.find_game_player(game_id, user_id) {
+            Ok(_) => Ok(true),
+            Err(Error::NotInGame) => Ok(false),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Add a user as a player in a game
+    pub fn join_game(&self, game_id: GameId, user_id: UserId) -> Result<GamePlayer, Error> {
+        if self.user_in_game(game_id, user_id)? {
+            return Err(Error::AlreadyInGame);
+        }
+        let game = self.find_dbgame(game_id)?;
+        if let Some(_) = game.state {
+            return Err(Error::GameAlreadyStarted);
+        }
+
+        let player = NewGamePlayer {
+            game_id,
+            user_id,
+            score: None,
+        };
+        Ok(diesel::insert_into(game_players::table)
+            .values(&player)
+            .get_result::<GamePlayer>(&self.db)?)
+    }
+
+    /// Remove a user as a player in a game
+    pub fn leave_game(&self, game_id: GameId, user_id: UserId) -> Result<(), Error> {
+        use game_players::dsl;
+        let player = self.find_game_player(game_id, user_id)?;
+        diesel::delete(dsl::game_players.filter(dsl::id.eq(player.id))).execute(&self.db)?;
+        Ok(())
+    }
+
+    /// Update a DBGame in the database
+    fn save_dbgame(&self, game: &DBGame) -> Result<(), Error> {
+        diesel::update(games::dsl::games.find(game.id))
+            .set(game)
+            .execute(&self.db)?;
+        Ok(())
+    }
+
+    /// Save a GamePlayer in the database
+    pub fn save_game_player(&self, game_player: &GamePlayer) -> Result<(), Error> {
+        diesel::update(game_players::dsl::game_players.find(game_player.id))
+            .set(game_player)
+            .execute(&self.db)?;
+        Ok(())
+    }
+
+    /// Update a game and its player's scores in the database
+    pub fn save_game(&self, game: &Game) -> Result<(), Error> {
+        self.save_dbgame(&game.to_dbgame())?;
+        if let Some(instance) = &game.instance {
+            if let Some(scores) = instance.scores() {
+                let mut players = self.find_game_players(game.id)?;
+                for player in &mut players {
+                    player.score = Some(scores[&player.id]);
+                    self.save_game_player(player)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Start a game as the given user
+    pub fn start_game(&self, game_id: GameId, user_id: UserId) -> Result<(), Error> {
+        let (mut game, players) = self.find_game(game_id)?;
+        let player_ids = (&players)
+            .iter()
+            .map(|p| p.user_id)
+            .collect::<Vec<UserId>>();
+        if game.owner_id != user_id {
+            return Err(Error::DontOwnGame);
+        }
+        if let Some(_) = game.instance {
+            return Err(Error::GameAlreadyStarted);
+        }
+
+        let new_instance = self.game_type_map[&*game.game_type].new(&player_ids);
+
+        match new_instance {
+            Some(new_instance) => {
+                game.instance = Some(new_instance);
+                self.save_game(&game)?;
+                Ok(())
+            }
+            None => Err(Error::InvalidNumberOfPlayers),
+        }
     }
 }

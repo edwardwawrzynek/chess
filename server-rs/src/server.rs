@@ -1,10 +1,11 @@
 use crate::apikey::ApiKey;
 use crate::cmd::{ClientCommand, ServerCommand};
-use crate::db::{init_db_pool, DBWrapper, PgPool};
+use crate::db::{init_db_pool, DBWrapper, GameTypeMap, PgPool};
 use crate::error::Error;
 use crate::models::{User, UserId};
 use futures_channel::mpsc;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
+use std::future::Future;
 use std::{
     collections::HashMap,
     collections::HashSet,
@@ -137,11 +138,12 @@ fn handle_cmd(
     client_map: &Mutex<ClientMap>,
     client_addr: &SocketAddr,
     db_pool: &PgPool,
+    game_type_map: &GameTypeMap,
 ) -> Result<Option<ServerCommand>, Error> {
     use ClientCommand::*;
 
     // get a database connection
-    let db = || DBWrapper::from_pg_pool(db_pool);
+    let db = || DBWrapper::from_pg_pool(db_pool, game_type_map);
     // lock the client map
     let clients = || client_map.lock().unwrap();
     // load the current user
@@ -227,6 +229,7 @@ fn handle_message(
     client_map: &Mutex<ClientMap>,
     client_addr: &SocketAddr,
     db_pool: &PgPool,
+    game_type_map: &GameTypeMap,
 ) {
     // reply to ping messages
     let reply = if msg.is_close() || msg.is_ping() {
@@ -238,7 +241,7 @@ fn handle_message(
             Ok(txt) => {
                 let cmd = ClientCommand::deserialize(txt);
                 match cmd {
-                    Ok(cmd) => handle_cmd(&cmd, client_map, client_addr, db_pool),
+                    Ok(cmd) => handle_cmd(&cmd, client_map, client_addr, db_pool, game_type_map),
                     Err(e) => Err(e),
                 }
             }
@@ -261,6 +264,7 @@ async fn handle_connection(
     raw_stream: TcpStream,
     addr: SocketAddr,
     db_pool: Arc<PgPool>,
+    game_type_map: Arc<GameTypeMap>,
 ) {
     println!("Incoming TCP connection from: {}", addr);
 
@@ -276,7 +280,7 @@ async fn handle_connection(
     let (outgoing, incoming) = ws_stream.split();
 
     let handle_incoming = incoming.try_for_each(|msg| {
-        handle_message(&msg, &*client_map, &addr, &db_pool);
+        handle_message(&msg, &*client_map, &addr, &db_pool, &game_type_map);
 
         future::ok(())
     });
@@ -290,21 +294,28 @@ async fn handle_connection(
     client_map.lock().unwrap().remove_client(&addr);
 }
 
-pub async fn run_server(url: &str, db_url: &str) {
-    // Create application state
-    let clients = Arc::new(Mutex::new(ClientMap::default()));
-    let db_pool = Arc::new(init_db_pool(db_url).expect("Can't open database"));
+pub fn run_server<'a>(
+    url: &'a str,
+    db_url: &'a str,
+    game_type_map: Arc<GameTypeMap>,
+) -> impl Future<Output = ()> + 'a {
+    async move {
+        // Create application state
+        let clients = Arc::new(Mutex::new(ClientMap::default()));
+        let db_pool = Arc::new(init_db_pool(db_url).expect("Can't open database"));
 
-    // Setup a tcp server and accept connections
-    let try_socket = TcpListener::bind(url).await;
-    let listener = try_socket.expect("Failed to bind to port");
-    println!("Listening on: {}", url);
-    while let Ok((stream, addr)) = listener.accept().await {
-        tokio::spawn(handle_connection(
-            clients.clone(),
-            stream,
-            addr,
-            db_pool.clone(),
-        ));
+        // Setup a tcp server and accept connections
+        let try_socket = TcpListener::bind(url).await;
+        let listener = try_socket.expect("Failed to bind to port");
+        println!("Listening on: {}", url);
+        while let Ok((stream, addr)) = listener.accept().await {
+            tokio::spawn(handle_connection(
+                clients.clone(),
+                stream,
+                addr,
+                db_pool.clone(),
+                game_type_map.clone(),
+            ));
+        }
     }
 }
