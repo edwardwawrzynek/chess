@@ -6,7 +6,7 @@ RUN apt-get update && DEBIAN_FRONTEND="noninteractive" apt-get install -y build-
 
 # Install uWebSockets
 WORKDIR /usr/src/
-RUN git clone --recursive https://github.com/uNetworking/uWebSockets.git
+RUN git clone --branch v18.23.0 --recursive https://github.com/uNetworking/uWebSockets.git
 RUN make -C uWebSockets
 RUN make -C uWebSockets install
 RUN ln `pwd`/uWebSockets/uSockets/uSockets.a /usr/local/lib/libusockets.a
