@@ -23,11 +23,11 @@ cmd arg0, arg1, arg2, arg3
 |`self_user_info <id>, <email>, <name>`|Server|Send information about the current user to the client.|
 ### Game commands
 |Command|Sender|Description|
-|-|-|
+-|-|-
 |`new_game <type>`|Client|Create a new game of the given type (server responds with `new_game`).|
 |`new_game <id>`|Server|Return the new game's id.|
 |`observe_game <id>`|Client|Get the state of the game with the given id, and receive updates when that state changes (server responds with `game`).|
 |`stop_observe_game <id>`|Client|Stop receiving updates about the state of the game with the given id.|
-|`game <id>,<type>,<owning_user_id>,<started>,<finished>,<winner_id|"tie">,[[<player0_id>,<player0_score>],...],<game_state|"-">`|Server|Send a game's state to the client.|
+|`game <id>,<type>,<owning_user_id>,<started>,<finished>,<winner_id OR "tie">,[[<player0_id>,<player0_score>],...],<game_state OR "-">`|Server|Send a game's state to the client.|
 |`join_game <id>`|Client|Join the game with the given id. The game must not be started yet.|
 |`start_game <id>`|Client|Start the game with the given id. The logged in user must own the game.|

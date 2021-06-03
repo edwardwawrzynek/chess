@@ -68,7 +68,11 @@ go run example.go codekata-chess.herokuapp.com 80 API_KEY "Sample Go Program"
 ```
 
 ## Rust Library
-The rust bindings are not yet complete.
+The rust bindings are in `rust_bindings/chess`. They are in a `chess` crate. To use the rust library, add the following to your `Cargo.toml`:
+```
+[dependencies]
+chess = { path = "path/to/rust_bindings/chess" }
+```
 
 ## Library Debug / Release Builds
 By default, cmake builds the library in debug mode. The library is full of assertions and invariant checks, which ensure that the library is functioning properly and that your program isn't passing it bad data. Additionally, debug builds can be easily debugged with a c/c++ debugger.
