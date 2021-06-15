@@ -10,6 +10,7 @@ cmd arg0, arg1, arg2, arg3
 |Command|Sender|Description|
 -|-|-
 |`error <msg>`|Server|Report an error that occurred in processing a command.|
+|`okay`|Server|Report that a command was processed successfully, but no response to the client is needed.|
 |`new_user <name>, <email>, <password>`|Client|Create and log in as a new user.|
 |`new_tmp_user <name>`|Client|Create and log in as a new user without an email/password|
 |`apikey <key>`|Client|Log in with the given api key.|
@@ -30,4 +31,5 @@ cmd arg0, arg1, arg2, arg3
 |`stop_observe_game <id>`|Client|Stop receiving updates about the state of the game with the given id.|
 |`game <id>,<type>,<owning_user_id>,<started>,<finished>,<winner_id OR "tie">,[[<player0_id>,<player0_score>],...],<game_state OR "-">`|Server|Send a game's state to the client.|
 |`join_game <id>`|Client|Join the game with the given id. The game must not be started yet.|
+|`leave_game <id>`|Client|Leave the game with the given id. The game must not be started yet.|
 |`start_game <id>`|Client|Start the game with the given id. The logged in user must own the game.|

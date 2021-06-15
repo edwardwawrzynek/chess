@@ -1,11 +1,13 @@
 use crate::apikey::ApiKey;
 use crate::cmd::{ClientCommand, ServerCommand};
-use crate::db::{init_db_pool, DBWrapper, GameTypeMap, PgPool};
+use crate::db::{init_db_pool, DBWrapper, Game, GameTypeMap, PgPool};
 use crate::error::Error;
-use crate::models::{User, UserId};
+use crate::games::{Fmt, GameState, GameTurn};
+use crate::models::{GameId, GamePlayer, User, UserId};
 use futures_channel::mpsc;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use std::future::Future;
+use std::sync::MutexGuard;
 use std::{
     collections::HashMap,
     collections::HashSet,
@@ -25,6 +27,8 @@ enum Topic {
     UserPrivate(UserId),
     /// Messages about a particular user
     User(UserId),
+    /// Messages about a particular game
+    Game(GameId),
 }
 
 impl Default for Topic {
@@ -111,8 +115,12 @@ impl ClientMap {
         let tx = self.channels.get(client);
         match tx {
             Some(tx) => {
-                tx.unbounded_send(msg)
-                    .expect("Receiving channel was closed");
+                tx.unbounded_send(msg).unwrap_or_else(|e| {
+                    eprintln!(
+                        "Can't send message to client -- receiving channel was closed, {}",
+                        e
+                    )
+                });
                 Ok(())
             }
             None => Err(Error::NoSuchConnectedClient),
@@ -132,6 +140,37 @@ impl ClientMap {
     }
 }
 
+/// Convert a game and its players to a game command
+fn serialize_game_state(game: &Game, players: &Vec<GamePlayer>) -> ServerCommand {
+    let (finished, winner, state) = match &game.instance {
+        &None => (false, GameState::InProgress, None),
+        Some(inst) => {
+            let state = format!("{}", Fmt(|f| inst.serialize(f)));
+            match inst.turn() {
+                GameTurn::Finished => (
+                    true,
+                    inst.end_state().unwrap_or(GameState::InProgress),
+                    Some(state),
+                ),
+                _ => (false, GameState::InProgress, Some(state)),
+            }
+        }
+    };
+    ServerCommand::Game {
+        id: game.id,
+        game_type: game.game_type.clone(),
+        owner: game.owner_id,
+        started: game.instance.is_some(),
+        finished,
+        winner,
+        players: players
+            .iter()
+            .map(|p| (p.user_id, p.score))
+            .collect::<Vec<(UserId, Option<f64>)>>(),
+        state,
+    }
+}
+
 /// Apply a command sent by a client and return a response (if necessary)
 fn handle_cmd(
     cmd: &ClientCommand,
@@ -142,18 +181,30 @@ fn handle_cmd(
 ) -> Result<Option<ServerCommand>, Error> {
     use ClientCommand::*;
 
-    // get a database connection
-    let db = || DBWrapper::from_pg_pool(db_pool, game_type_map);
     // lock the client map
     let clients = || client_map.lock().unwrap();
+    // callback when a game's state changes
+    let game_update = |game: &Game, players: &Vec<GamePlayer>| {
+        // TODO: send board to player whose turn it is
+        let cmd = serialize_game_state(game, players);
+        clients()
+            .publish(Topic::Game(game.id), &Message::from(cmd.to_string()))
+            .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
+    };
+    // get a database connection
+    let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update);
     // load the current user
-    let user = |db: &DBWrapper| {
-        if let Some(user_id) = clients().is_user(client_addr) {
+    fn user<F: Fn(&Game, &Vec<GamePlayer>)>(
+        db: &DBWrapper<F>,
+        client_addr: &SocketAddr,
+        clients: MutexGuard<ClientMap>,
+    ) -> Result<User, Error> {
+        if let Some(user_id) = clients.is_user(client_addr) {
             db.find_user(user_id)
         } else {
             Err(Error::NotLoggedIn)
         }
-    };
+    }
 
     match cmd {
         // --- User Authentication ---
@@ -190,7 +241,7 @@ fn handle_cmd(
             let db = db()?;
             db.save_user(&User {
                 name: name.to_string(),
-                ..user(&db)?
+                ..user(&db, client_addr, clients())?
             })?;
             Ok(None)
         }
@@ -199,7 +250,7 @@ fn handle_cmd(
             let hashed = bcrypt::hash(pass, bcrypt::DEFAULT_COST)?;
             db.save_user(&User {
                 password_hash: Some(hashed),
-                ..user(&db)?
+                ..user(&db, client_addr, clients())?
             })?;
             Ok(None)
         }
@@ -208,17 +259,48 @@ fn handle_cmd(
             let key = ApiKey::new();
             db.save_user(&User {
                 api_key_hash: key.hash().to_string(),
-                ..user(&db)?
+                ..user(&db, client_addr, clients())?
             })?;
             Ok(Some(ServerCommand::GenApikey(key)))
         }
         SelfUserInfo => {
-            let user = user(&db()?)?;
+            let user = user(&db()?, client_addr, clients())?;
             Ok(Some(ServerCommand::SelfUserInfo {
                 id: user.id,
                 name: user.name,
                 email: user.email,
             }))
+        }
+        // --- Game Creation / Management --
+        NewGame(game_type) => {
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            let game = db.new_game(*game_type, user.id)?;
+            Ok(Some(ServerCommand::NewGame(game.id)))
+        }
+        ObserveGame(game_id) => {
+            let (game, players) = db()?.find_game(*game_id)?;
+            clients().add_to_topic(Topic::Game(*game_id), *client_addr);
+            Ok(Some(serialize_game_state(&game, &players)))
+        }
+        StopObserveGame(game_id) => {
+            clients().remove_from_topic(Topic::Game(*game_id), client_addr);
+            Ok(None)
+        }
+        JoinGame(game_id) => {
+            let db = &db()?;
+            db.join_game(*game_id, user(db, client_addr, clients())?.id)?;
+            Ok(None)
+        }
+        LeaveGame(game_id) => {
+            let db = &db()?;
+            db.leave_game(*game_id, user(db, client_addr, clients())?.id)?;
+            Ok(None)
+        }
+        StartGame(game_id) => {
+            let db = &db()?;
+            db.start_game(*game_id, user(db, client_addr, clients())?.id)?;
+            Ok(None)
         }
     }
 }
@@ -248,15 +330,15 @@ fn handle_message(
         }
     };
 
-    let reply = reply.unwrap_or_else(|e| Some(ServerCommand::Error(e)));
+    let reply = reply
+        .unwrap_or_else(|e| Some(ServerCommand::Error(e)))
+        .unwrap_or(ServerCommand::Okay);
 
-    if let Some(reply) = reply {
-        client_map
-            .lock()
-            .unwrap()
-            .send(client_addr, Message::from(reply.to_string()))
-            .expect("Error sending message to client");
-    }
+    client_map
+        .lock()
+        .unwrap()
+        .send(client_addr, Message::from(reply.to_string()))
+        .unwrap_or_else(|e| eprintln!("Error sending message to client, {}", e));
 }
 
 async fn handle_connection(

@@ -32,6 +32,8 @@ pub enum Error {
     DontOwnGame,
     InvalidNumberOfPlayers,
     NotInGame,
+    MalformedId,
+    NoSuchGameType(String),
 }
 
 impl PartialEq for Error {
@@ -126,6 +128,14 @@ impl PartialEq for Error {
                 NotInGame => true,
                 _ => false,
             },
+            MalformedId => match other {
+                MalformedId => true,
+                _ => false,
+            },
+            NoSuchGameType(game_type) => match other {
+                NoSuchGameType(other_type) => *game_type == *other_type,
+                _ => false,
+            },
         }
     }
 }
@@ -188,6 +198,8 @@ impl fmt::Display for Error {
             DontOwnGame => write!(f, "you aren't the owner of that game"),
             InvalidNumberOfPlayers => write!(f, "invalid number of players joined to start game"),
             NotInGame => write!(f, "you aren't a player in that game"),
+            MalformedId => write!(f, "malformed id"),
+            NoSuchGameType(game_type) => write!(f, "unsupported game type: {}", *game_type),
         }
     }
 }

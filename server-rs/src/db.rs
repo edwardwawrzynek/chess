@@ -3,7 +3,7 @@ use crate::diesel::prelude::*;
 use crate::error::Error;
 use crate::games::{Fmt, GameInstance, GameState, GameTurn, GameType};
 use crate::models::{
-    DBGame, GameId, GamePlayer, GamePlayerId, NewGamePlayer, NewUser, User, UserId,
+    DBGame, GameId, GamePlayer, GamePlayerId, NewDBGame, NewGamePlayer, NewUser, User, UserId,
 };
 use crate::schema::{game_players, games, users};
 use bcrypt;
@@ -28,10 +28,10 @@ pub type GameTypeMap = HashMap<&'static str, Box<dyn GameType>>;
 
 // in memory representation of a game
 pub struct Game {
-    id: GameId,
-    owner_id: UserId,
-    game_type: String,
-    instance: Option<Box<dyn GameInstance>>,
+    pub id: GameId,
+    pub owner_id: UserId,
+    pub game_type: String,
+    pub instance: Option<Box<dyn GameInstance>>,
 }
 
 pub type GameAndPlayers = (Game, Vec<GamePlayer>);
@@ -94,20 +94,23 @@ pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
 }
 
 /// A database connection wrapper, which associates the database with functions to manipulate it
-pub struct DBWrapper<'a> {
+pub struct DBWrapper<'a, F: Fn(&Game, &Vec<GamePlayer>)> {
     db: PooledConnection<ConnectionManager<PgConnection>>,
     game_type_map: &'a GameTypeMap,
+    game_update_callback: F,
 }
 
-impl DBWrapper<'_> {
+impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
     /// Wrap an existing pg connection
     pub fn from_pg_pool<'a>(
         pool: &PgPool,
         type_map: &'a GameTypeMap,
-    ) -> Result<DBWrapper<'a>, Error> {
+        game_update_callback: F,
+    ) -> Result<DBWrapper<'a, F>, Error> {
         Ok(DBWrapper {
             db: pool.get()?,
             game_type_map: type_map,
+            game_update_callback,
         })
     }
 
@@ -207,6 +210,24 @@ impl DBWrapper<'_> {
     }
 
     // ---- Games ----
+    /// Create a new game with the given type
+    pub fn new_game(&self, game_type: &str, owner: UserId) -> Result<DBGame, Error> {
+        if !self.game_type_map.contains_key(game_type) {
+            return Err(Error::NoSuchGameType(game_type.to_string()));
+        }
+        let game = NewDBGame {
+            game_type,
+            state: None,
+            owner_id: owner,
+            winner: None,
+            finished: false,
+            is_tie: None,
+        };
+        Ok(diesel::insert_into(games::table)
+            .values(&game)
+            .get_result::<DBGame>(&self.db)?)
+    }
+
     /// Load a DBGame from the database
     fn find_dbgame(&self, id: GameId) -> Result<DBGame, Error> {
         match games::dsl::games
@@ -273,8 +294,8 @@ impl DBWrapper<'_> {
         if self.user_in_game(game_id, user_id)? {
             return Err(Error::AlreadyInGame);
         }
-        let game = self.find_dbgame(game_id)?;
-        if let Some(_) = game.state {
+        let (game, mut players) = self.find_game(game_id)?;
+        if let Some(_) = game.instance {
             return Err(Error::GameAlreadyStarted);
         }
 
@@ -283,16 +304,31 @@ impl DBWrapper<'_> {
             user_id,
             score: None,
         };
-        Ok(diesel::insert_into(game_players::table)
+        let new_player = diesel::insert_into(game_players::table)
             .values(&player)
-            .get_result::<GamePlayer>(&self.db)?)
+            .get_result::<GamePlayer>(&self.db)?;
+
+        players.push(new_player);
+        (self.game_update_callback)(&game, &players);
+
+        Ok(players.pop().unwrap())
     }
 
     /// Remove a user as a player in a game
     pub fn leave_game(&self, game_id: GameId, user_id: UserId) -> Result<(), Error> {
         use game_players::dsl;
         let player = self.find_game_player(game_id, user_id)?;
+        let (game, mut players) = self.find_game(game_id)?;
+        if let Some(_) = game.instance {
+            return Err(Error::GameAlreadyStarted);
+        }
+
         diesel::delete(dsl::game_players.filter(dsl::id.eq(player.id))).execute(&self.db)?;
+
+        if let Some(index) = players.iter().position(|p| p.user_id == user_id) {
+            players.remove(index);
+        }
+        (self.game_update_callback)(&game, &players);
         Ok(())
     }
 
@@ -315,15 +351,16 @@ impl DBWrapper<'_> {
     /// Update a game and its player's scores in the database
     pub fn save_game(&self, game: &Game) -> Result<(), Error> {
         self.save_dbgame(&game.to_dbgame())?;
+        let mut players = self.find_game_players(game.id)?;
         if let Some(instance) = &game.instance {
             if let Some(scores) = instance.scores() {
-                let mut players = self.find_game_players(game.id)?;
                 for player in &mut players {
                     player.score = Some(scores[&player.id]);
                     self.save_game_player(player)?;
                 }
             }
         }
+        (self.game_update_callback)(game, &players);
         Ok(())
     }
 

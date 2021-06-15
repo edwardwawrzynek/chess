@@ -1,16 +1,19 @@
 use crate::apikey::ApiKey;
 use crate::error::Error;
-use crate::models::UserId;
+use crate::games::GameState;
+use crate::models::{GameId, UserId};
 use lazy_static;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
 
 /// A command that can be sent from server to client
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Debug)]
 pub enum ServerCommand {
     /// Report an error to the client
     Error(Error),
+    /// Report that a command succeeded
+    Okay,
     /// Report the current user's newly generated api key
     GenApikey(ApiKey),
     /// Report information for the current user
@@ -18,6 +21,19 @@ pub enum ServerCommand {
         id: UserId,
         name: String,
         email: Option<String>,
+    },
+    /// Return a new game's id
+    NewGame(GameId),
+    /// Report a game's state to clients
+    Game {
+        id: GameId,
+        game_type: String,
+        owner: UserId,
+        started: bool,
+        finished: bool,
+        winner: GameState,
+        players: Vec<(UserId, Option<f64>)>,
+        state: Option<String>,
     },
 }
 
@@ -46,13 +62,28 @@ pub enum ClientCommand<'a> {
     GenApikey,
     /// Get info on the current user (ServerCommand::UserInfo response)
     SelfUserInfo,
+    /// Create a new game of the given type
+    NewGame(&'a str),
+    /// Observe a game with the given id
+    ObserveGame(GameId),
+    /// End observation of a game with the given id
+    StopObserveGame(GameId),
+    /// Join a game with the given id
+    JoinGame(GameId),
+    /// Leave a game with the given id
+    LeaveGame(GameId),
+    /// Start a game with the given id
+    StartGame(GameId),
 }
 
 impl fmt::Display for ServerCommand {
     /// Serialize the command into the textual representation expected by the client
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use ServerCommand::*;
+        let dash_str = "-".to_string();
+
         match self {
+            &Okay => write!(f, "okay"),
             &Error(ref e) => write!(f, "error {}", e.to_string()),
             &GenApikey(ref key) => write!(f, "gen_apikey {}", key.to_string()),
             &SelfUserInfo {
@@ -60,9 +91,38 @@ impl fmt::Display for ServerCommand {
                 ref name,
                 ref email,
             } => {
-                let default_email = "-".to_string();
-                let email_str = email.as_ref().unwrap_or_else(|| &default_email);
+                let email_str = email.as_ref().unwrap_or(&dash_str);
                 write!(f, "self_user_info {}, {}, {}", id, *name, *email_str)
+            }
+            &NewGame(id) => write!(f, "new_game {}", id),
+            &Game {
+                id,
+                ref game_type,
+                started,
+                finished,
+                ref winner,
+                ref players,
+                owner,
+                ref state,
+            } => {
+                write!(
+                    f,
+                    "game {}, {}, {}, {}, {}, ",
+                    id, *game_type, owner, started, finished
+                )?;
+                match winner {
+                    &GameState::InProgress => write!(f, "-")?,
+                    &GameState::Win(uid) => write!(f, "{}", uid)?,
+                    &GameState::Tie => write!(f, "tie")?,
+                }
+                write!(f, ", [")?;
+                for (i, player) in players.iter().enumerate() {
+                    write!(f, "[{}, {}]", (*player).0, (*player).1.unwrap_or(0.0))?;
+                    if i < players.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "], {}", *state.as_ref().unwrap_or(&dash_str))
             }
         }
     }
@@ -104,8 +164,21 @@ lazy_static! {
         m.insert("gen_apikey", 0);
         m.insert("self_user_info", 0);
         m.insert("logout", 0);
+        m.insert("new_game", 1);
+        m.insert("observe_game", 1);
+        m.insert("stop_observe_game", 1);
+        m.insert("join_game", 1);
+        m.insert("leave_game", 1);
+        m.insert("start_game", 1);
         m
     };
+}
+
+fn parse_id(str: &str) -> Result<i32, Error> {
+    match str.parse::<i32>() {
+        Ok(id) => Ok(id),
+        Err(_) => Err(Error::MalformedId),
+    }
 }
 
 impl ClientCommand<'_> {
@@ -147,6 +220,12 @@ impl ClientCommand<'_> {
             "gen_apikey" => Ok(GenApikey),
             "self_user_info" => Ok(SelfUserInfo),
             "logout" => Ok(Logout),
+            "new_game" => Ok(NewGame(args[0])),
+            "observe_game" => Ok(ObserveGame(parse_id(args[0])?)),
+            "stop_observe_game" => Ok(StopObserveGame(parse_id(args[0])?)),
+            "join_game" => Ok(JoinGame(parse_id(args[0])?)),
+            "leave_game" => Ok(LeaveGame(parse_id(args[0])?)),
+            "start_game" => Ok(StartGame(parse_id(args[0])?)),
             _ => Err(Error::InvalidCommand(cmd.to_string())),
         }
     }
@@ -157,6 +236,7 @@ mod tests {
     use super::*;
     #[test]
     fn cmd_serialize_test() {
+        assert_eq!(ServerCommand::Okay.to_string(), "okay");
         assert_eq!(
             ServerCommand::SelfUserInfo {
                 id: 5,
@@ -177,6 +257,21 @@ mod tests {
             )
             .to_string(),
             "gen_apikey aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
+        assert_eq!(ServerCommand::NewGame(1).to_string(), "new_game 1");
+        assert_eq!(
+            ServerCommand::Game {
+                id: 1,
+                game_type: "some_game".to_string(),
+                owner: 2,
+                started: true,
+                finished: true,
+                winner: GameState::Tie,
+                players: vec![(3, Some(0.5)), (4, Some(4.5)), (5, None)],
+                state: Some("STATE".to_string()),
+            }
+            .to_string(),
+            "game 1, some_game, 2, true, true, tie, [[3, 0.5], [4, 4.5], [5, 0]], STATE"
         );
     }
 
@@ -240,6 +335,35 @@ mod tests {
         assert_eq!(
             ClientCommand::deserialize("self_user_info"),
             Ok(ClientCommand::SelfUserInfo)
+        );
+
+        assert_eq!(
+            ClientCommand::deserialize("new_game chess"),
+            Ok(ClientCommand::NewGame("chess"))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("observe_game game"),
+            Err(Error::MalformedId)
+        );
+        assert_eq!(
+            ClientCommand::deserialize("observe_game 1"),
+            Ok(ClientCommand::ObserveGame(1))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("stop_observe_game 2"),
+            Ok(ClientCommand::StopObserveGame(2))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("start_game 3"),
+            Ok(ClientCommand::StartGame(3))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("join_game 4"),
+            Ok(ClientCommand::JoinGame(4))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("leave_game 5"),
+            Ok(ClientCommand::LeaveGame(5))
         );
     }
 }
