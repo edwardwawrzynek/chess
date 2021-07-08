@@ -55,6 +55,7 @@ pub struct GamePlayer {
     pub user_id: UserId,
     pub game_id: GameId,
     pub score: Option<f64>,
+    pub waiting_for_move: bool,
 }
 
 #[derive(Insertable)]
@@ -63,4 +64,5 @@ pub struct NewGamePlayer {
     pub user_id: UserId,
     pub game_id: GameId,
     pub score: Option<f64>,
+    pub waiting_for_move: bool,
 }

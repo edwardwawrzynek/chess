@@ -196,6 +196,43 @@ fn serialize_game_state(game: &Game, players: &Vec<GamePlayer>) -> ServerCommand
     }
 }
 
+/// Convert a game to a go command for its active player
+fn serialize_game_for_player(game: &Game) -> Option<(UserId, ServerCommand)> {
+    match &game.instance {
+        &None => None,
+        Some(inst) => {
+            match inst.turn() {
+                GameTurn::Finished => None,
+                GameTurn::Turn(user_id) => {
+                    let state = format!("{}", Fmt(|f| inst.serialize_current(f)));
+                    // TODO: serialize based on protocol version
+                    Some((user_id, ServerCommand::Go {
+                        id: game.id,
+                        game_type: game.game_type.clone(),
+                        time_ms: 0,
+                        time_for_turn_ms: 0,
+                        state: Some(state)
+                    }))
+                }
+            }
+        }
+    }
+}
+
+/// Return a list of go commands for all the active games a player is in that are waiting on that player to move
+fn serialize_waiting_games_for_user<F: Fn(&Game, &Vec<GamePlayer>)>(user_id: UserId, db: &DBWrapper<F>) -> Result<Vec<ServerCommand>, Error> {
+    let games = db.find_waiting_games_for_user(user_id)?;
+    let mut res = Vec::new();
+    for game_id in games {
+        let (game, _) = db.find_game(game_id)?;
+        if let Some((uid, cmd)) = serialize_game_for_player(&game) {
+            assert_eq!(uid, user_id);
+            res.push(cmd);
+        }
+    }
+    Ok(res)
+}
+
 /// Apply a command sent by a client and return a response (if necessary)
 fn handle_cmd(
     cmd: &ClientCommand,
@@ -210,11 +247,16 @@ fn handle_cmd(
     let clients = || client_map.lock().unwrap();
     // callback when a game's state changes
     let game_update = |game: &Game, players: &Vec<GamePlayer>| {
-        // TODO: send board to player whose turn it is
+        // send game state to all observers
         let cmd = serialize_game_state(game, players);
         clients()
             .publish(Topic::Game(game.id), &Message::from(cmd.to_string()))
             .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
+        // send game to player whose turn it is
+        if let Some((user_id, cmd)) = serialize_game_for_player(game) {
+            clients().publish(Topic::UserPrivate(user_id), &Message::from(cmd.to_string())).unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
+        }
+
     };
     // get a database connection
     let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update);
@@ -231,6 +273,22 @@ fn handle_cmd(
         }
     }
 
+    // send waiting games for user
+    fn send_waiting_games<F: Fn(&Game, &Vec<GamePlayer>)>(user_id: UserId, db: &DBWrapper<F>, client_addr: &SocketAddr, clients: MutexGuard<ClientMap>) -> Result<(), Error> {
+        let cmds = serialize_waiting_games_for_user(user_id, db)?;
+        for cmd in &cmds {
+            clients.send(client_addr, Message::from(cmd.to_string()))?;
+        }
+        Ok(())
+    }
+
+    // login as a user
+    fn login<F: Fn(&Game, &Vec<GamePlayer>)>(user_id: UserId, client_addr: &SocketAddr, db: &DBWrapper<F>, mut clients: MutexGuard<ClientMap>) -> Result<(), Error> {
+        clients.add_as_user(user_id, *client_addr);
+        send_waiting_games(user_id, db, client_addr, clients)?;
+        Ok(())
+    }
+
     match cmd {
         Version(ver) => {
             clients().set_protocol_ver(client_addr, *ver);
@@ -242,23 +300,27 @@ fn handle_cmd(
             email,
             password,
         } => {
-            let user = db()?.new_user(*name, *email, *password)?;
-            clients().add_as_user(user.id, *client_addr);
+            let db = db()?;
+            let user = db.new_user(*name, *email, *password)?;
+            login(user.id, client_addr, &db, clients())?;
             Ok(None)
         }
         NewTmpUser { name } => {
-            let user = db()?.new_tmp_user(*name)?;
-            clients().add_as_user(user.id, *client_addr);
+            let db = db()?;
+            let user = db.new_tmp_user(*name)?;
+            login(user.id, client_addr, &db, clients())?;
             Ok(None)
         }
         Apikey(key) => {
-            let user = db()?.find_user_by_apikey(key)?;
-            clients().add_as_user(user.id, *client_addr);
+            let db = db()?;
+            let user = db.find_user_by_apikey(key)?;
+            login(user.id, client_addr, &db, clients())?;
             Ok(None)
         }
         Login { email, password } => {
-            let user = db()?.find_user_by_credentials(*email, *password)?;
-            clients().add_as_user(user.id, *client_addr);
+            let db = db()?;
+            let user = db.find_user_by_credentials(*email, *password)?;
+            login(user.id, client_addr, &db, clients())?;
             Ok(None)
         }
         Logout => {
@@ -330,6 +392,9 @@ fn handle_cmd(
             let db = &db()?;
             db.start_game(*game_id, user(db, client_addr, clients())?.id)?;
             Ok(None)
+        }
+        Play { id, play } => {
+            todo!("IMPLEMENT")
         }
     }
 }

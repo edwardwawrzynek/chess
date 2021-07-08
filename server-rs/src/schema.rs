@@ -4,6 +4,7 @@ table! {
         user_id -> Int4,
         game_id -> Int4,
         score -> Nullable<Float8>,
+        waiting_for_move -> Bool,
     }
 }
 
@@ -30,4 +31,8 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(game_players, games, users,);
+allow_tables_to_appear_in_same_query!(
+    game_players,
+    games,
+    users,
+);

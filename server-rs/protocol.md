@@ -70,6 +70,5 @@ version 2
 -|-|-|-
 |`go <game_id>, <game_type>, <time_remaining>, <time_for_move>, <game_state>`|Server|Send a game to the client. The client should pick a move to make and send it back with the `play` command. `time_remaining` is the total time (in ms) the client has for the whole game, and `time_for_move` is any additional time the client is given just for this move (in ms).|Version `2` only.|
 |`play <game_id>, <move>`|Client|Make a move in the given game. The client should send this in response to a `go` from the server.|Version `2` only.
-
 |`board <game_state>`|Server|Send a game to the client, who should pick a move and respond with the `move` command.|Version `1` only.|
 |`move <move>`|Client|Make a move, in response to a `board` command.|Version `1` only.|

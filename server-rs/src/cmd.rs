@@ -54,6 +54,14 @@ pub enum ServerCommand {
         players: Vec<(UserId, Option<f64>)>,
         state: Option<String>,
     },
+    /// Send a game to the client to make a move on
+    Go {
+        id: GameId,
+        game_type: String,
+        time_ms: u64,
+        time_for_turn_ms: u64,
+        state: Option<String>,
+    }
 }
 
 /// A command sent to the server from the client
@@ -95,6 +103,8 @@ pub enum ClientCommand<'a> {
     LeaveGame(GameId),
     /// Start a game with the given id
     StartGame(GameId),
+    /// Make a move in a game
+    Play { id: GameId, play: &'a str },
 }
 
 impl fmt::Display for ServerCommand {
@@ -145,6 +155,8 @@ impl fmt::Display for ServerCommand {
                 }
                 write!(f, "], {}", *state.as_ref().unwrap_or(&dash_str))
             }
+            &Go { id, ref game_type, time_ms, time_for_turn_ms, ref state } =>
+                write!(f, "go {}, {}, {}, {}, {}", id, *game_type, time_ms, time_for_turn_ms, *state.as_ref().unwrap_or(&dash_str)),
         }
     }
 }
@@ -192,6 +204,7 @@ lazy_static! {
         m.insert("leave_game", 1);
         m.insert("start_game", 1);
         m.insert("version", 1);
+        m.insert("play", 2);
         m
     };
 }
@@ -254,6 +267,7 @@ impl ClientCommand<'_> {
             "join_game" => Ok(JoinGame(parse_id(args[0])?)),
             "leave_game" => Ok(LeaveGame(parse_id(args[0])?)),
             "start_game" => Ok(StartGame(parse_id(args[0])?)),
+            "play" => Ok(Play { id: parse_id(args[0])?, play: args[1] }),
             _ => Err(Error::InvalidCommand(cmd.to_string())),
         }
     }
@@ -301,6 +315,7 @@ mod tests {
             .to_string(),
             "game 1, some_game, 2, true, true, tie, [[3, 0.5], [4, 4.5], [5, 0]], STATE"
         );
+        assert_eq!(ServerCommand::Go { id: 1, game_type: "some_game".to_string(), time_ms: 1234, time_for_turn_ms: 321, state: Some("STATE".to_string()) }.to_string(), "go 1, some_game, 1234, 321, STATE");
     }
 
     #[test]
@@ -405,5 +420,6 @@ mod tests {
             ClientCommand::deserialize("leave_game 5"),
             Ok(ClientCommand::LeaveGame(5))
         );
+        assert_eq!(ClientCommand::deserialize("play 1, e2e4"), Ok(ClientCommand::Play { id: 1, play: "e2e4" }));
     }
 }
