@@ -1,24 +1,12 @@
 #![feature(async_closure)]
 
-#[macro_use]
-extern crate diesel;
-#[macro_use]
-extern crate lazy_static;
+use server_rs::*;
 
-use crate::db::GameTypeMap;
+use db::GameTypeMap;
 use dotenv::dotenv;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
-
-mod apikey;
-mod cmd;
-mod db;
-mod error;
-mod games;
-mod models;
-mod schema;
-mod server;
 
 #[tokio::main]
 async fn main() {

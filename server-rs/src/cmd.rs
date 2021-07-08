@@ -7,6 +7,25 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
 
+/// Protocol Versions
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum ProtocolVersion {
+    Legacy,
+    Current,
+}
+
+impl TryFrom<i32> for ProtocolVersion {
+    type Error = Error;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(ProtocolVersion::Legacy),
+            2 => Ok(ProtocolVersion::Current),
+            _ => Err(Error::InvalidProtocolVersion),
+        }
+    }
+}
+
 /// A command that can be sent from server to client
 #[derive(PartialEq, Debug)]
 pub enum ServerCommand {
@@ -40,6 +59,8 @@ pub enum ServerCommand {
 /// A command sent to the server from the client
 #[derive(PartialEq, Eq, Debug)]
 pub enum ClientCommand<'a> {
+    /// Set the protocol version
+    Version(ProtocolVersion),
     /// Create a new user with login credentials and login
     NewUser {
         name: &'a str,
@@ -170,6 +191,7 @@ lazy_static! {
         m.insert("join_game", 1);
         m.insert("leave_game", 1);
         m.insert("start_game", 1);
+        m.insert("version", 1);
         m
     };
 }
@@ -179,6 +201,11 @@ fn parse_id(str: &str) -> Result<i32, Error> {
         Ok(id) => Ok(id),
         Err(_) => Err(Error::MalformedId),
     }
+}
+
+fn parse_protocol(str: &str) -> Result<ProtocolVersion, Error> {
+    let num = parse_id(str)?;
+    ProtocolVersion::try_from(num)
 }
 
 impl ClientCommand<'_> {
@@ -204,6 +231,7 @@ impl ClientCommand<'_> {
         }
         // command is correct, so deserialize
         match cmd {
+            "version" => Ok(Version(parse_protocol(args[0])?)),
             "new_user" => Ok(NewUser {
                 name: args[0],
                 email: args[1],
@@ -277,6 +305,18 @@ mod tests {
 
     #[test]
     fn cmd_parse_test() {
+        assert_eq!(
+            ClientCommand::deserialize("version 2"),
+            Ok(ClientCommand::Version(ProtocolVersion::Current))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("version 1"),
+            Ok(ClientCommand::Version(ProtocolVersion::Legacy))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("version 0"),
+            Err(Error::InvalidProtocolVersion)
+        );
         assert_eq!(
             ClientCommand::deserialize("random_cmd"),
             Err(Error::InvalidCommand("random_cmd".to_string()))

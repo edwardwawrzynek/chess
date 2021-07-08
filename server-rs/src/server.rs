@@ -1,5 +1,5 @@
 use crate::apikey::ApiKey;
-use crate::cmd::{ClientCommand, ServerCommand};
+use crate::cmd::{ClientCommand, ProtocolVersion, ServerCommand};
 use crate::db::{init_db_pool, DBWrapper, Game, GameTypeMap, PgPool};
 use crate::error::Error;
 use crate::games::{Fmt, GameState, GameTurn};
@@ -39,11 +39,17 @@ impl Default for Topic {
 
 type ClientTxChannel = mpsc::UnboundedSender<Message>;
 
+#[derive(Debug)]
+struct ClientConnInfo {
+    tx: ClientTxChannel,
+    protocol: ProtocolVersion,
+}
+
 /// A collection of connected clients. PeerMap contains a mapping of topics to clients addresses, and client addresses to a communication channel.
 #[derive(Debug, Default)]
 struct ClientMap {
-    // map client -> client transmit channel
-    channels: HashMap<SocketAddr, ClientTxChannel>,
+    // map client -> client transmit channel, protocol version
+    channels: HashMap<SocketAddr, ClientConnInfo>,
     // map topic -> interested clients
     topics: HashMap<Topic, HashSet<SocketAddr>>,
     // map client -> logged in user
@@ -55,7 +61,13 @@ type ClientMapLock = Arc<Mutex<ClientMap>>;
 impl ClientMap {
     /// Insert a client connection
     pub fn insert_client(&mut self, client: SocketAddr, tx: ClientTxChannel) {
-        self.channels.insert(client, tx);
+        self.channels.insert(
+            client,
+            ClientConnInfo {
+                tx,
+                protocol: ProtocolVersion::Legacy,
+            },
+        );
     }
 
     /// Add a client to a topic, creating that topic if it doesn't exist.
@@ -114,7 +126,7 @@ impl ClientMap {
     pub fn send(&self, client: &SocketAddr, msg: Message) -> Result<(), Error> {
         let tx = self.channels.get(client);
         match tx {
-            Some(tx) => {
+            Some(ClientConnInfo { tx, .. }) => {
                 tx.unbounded_send(msg).unwrap_or_else(|e| {
                     eprintln!(
                         "Can't send message to client -- receiving channel was closed, {}",
@@ -137,6 +149,19 @@ impl ClientMap {
         }
 
         Ok(())
+    }
+
+    /// Get a connection's protocol version
+    pub fn protocol_ver(&self, client: &SocketAddr) -> ProtocolVersion {
+        self.channels[client].protocol
+    }
+
+    /// Set a connection's protocol version
+    pub fn set_protocol_ver(&mut self, client: &SocketAddr, ver: ProtocolVersion) {
+        match self.channels.get_mut(client) {
+            Some(conn) => conn.protocol = ver,
+            None => {}
+        }
     }
 }
 
@@ -207,6 +232,10 @@ fn handle_cmd(
     }
 
     match cmd {
+        Version(ver) => {
+            clients().set_protocol_ver(client_addr, *ver);
+            Ok(None)
+        }
         // --- User Authentication ---
         NewUser {
             name,
@@ -330,15 +359,23 @@ fn handle_message(
         }
     };
 
-    let reply = reply
-        .unwrap_or_else(|e| Some(ServerCommand::Error(e)))
-        .unwrap_or(ServerCommand::Okay);
+    let clients = client_map.lock().unwrap();
 
-    client_map
-        .lock()
-        .unwrap()
-        .send(client_addr, Message::from(reply.to_string()))
-        .unwrap_or_else(|e| eprintln!("Error sending message to client, {}", e));
+    let reply = reply.unwrap_or_else(|e| Some(ServerCommand::Error(e)));
+
+    let reply = match reply {
+        Some(c) => Some(c),
+        None => match clients.protocol_ver(client_addr) {
+            ProtocolVersion::Current => Some(ServerCommand::Okay),
+            _ => None,
+        },
+    };
+
+    if let Some(reply) = reply {
+        clients
+            .send(client_addr, Message::from(reply.to_string()))
+            .unwrap_or_else(|e| eprintln!("Error sending message to client, {}", e));
+    }
 }
 
 async fn handle_connection(

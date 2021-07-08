@@ -34,6 +34,7 @@ pub enum Error {
     NotInGame,
     MalformedId,
     NoSuchGameType(String),
+    InvalidProtocolVersion,
 }
 
 impl PartialEq for Error {
@@ -136,6 +137,10 @@ impl PartialEq for Error {
                 NoSuchGameType(other_type) => *game_type == *other_type,
                 _ => false,
             },
+            InvalidProtocolVersion => match other {
+                InvalidProtocolVersion => true,
+                _ => false,
+            },
         }
     }
 }
@@ -200,6 +205,7 @@ impl fmt::Display for Error {
             NotInGame => write!(f, "you aren't a player in that game"),
             MalformedId => write!(f, "malformed id"),
             NoSuchGameType(game_type) => write!(f, "unsupported game type: {}", *game_type),
+            InvalidProtocolVersion => write!(f, "invalid protocol version"),
         }
     }
 }
