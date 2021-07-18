@@ -22,7 +22,9 @@ impl GameType for ChessGame {
         if let Some(fen) = components.next() {
             let mut moves = Vec::new();
             for move_str in components {
-                moves.push(move_str.to_string())
+                if move_str.len() > 0 {
+                    moves.push(move_str.to_string())
+                }
             }
 
             Some(Box::new(ChessGameInstance {

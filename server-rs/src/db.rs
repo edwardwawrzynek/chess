@@ -249,7 +249,8 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
     pub fn find_game_players(&self, game_id: GameId) -> Result<Vec<GamePlayer>, Error> {
         use game_players::dsl;
         Ok(dsl::game_players
-            .filter(dsl::game_id.eq(game_id)).order(dsl::id.asc())
+            .filter(dsl::game_id.eq(game_id))
+            .order(dsl::id.asc())
             .load::<GamePlayer>(&self.db)?)
     }
 
@@ -353,23 +354,41 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
         use game_players::dsl;
         // TODO: limit number of games loaded to number user has requested to play in at once
         Ok(dsl::game_players
-            .filter(dsl::user_id.eq(user_id).and(dsl::waiting_for_move.eq(true))).order(dsl::id.asc()).select(dsl::game_id)
+            .filter(dsl::user_id.eq(user_id).and(dsl::waiting_for_move.eq(true)))
+            .order(dsl::id.asc())
+            .select(dsl::game_id)
             .load::<GameId>(&self.db)?)
     }
 
     /// Update the waiting_to_move status for players in a game
-    fn update_waiting_to_move_for_players(&self, game_id: GameId, game_inst: &dyn GameInstance) -> Result<(), Error> {
+    fn update_waiting_to_move_for_players(
+        &self,
+        game_id: GameId,
+        game_inst: &dyn GameInstance,
+    ) -> Result<(), Error> {
         use game_players::dsl;
         match game_inst.turn() {
             GameTurn::Finished => {
                 // set all players as not waiting
-                diesel::update(dsl::game_players.filter(dsl::game_id.eq(game_id))).set(dsl::waiting_for_move.eq(false)).execute(&self.db)?;
-            },
+                diesel::update(dsl::game_players.filter(dsl::game_id.eq(game_id)))
+                    .set(dsl::waiting_for_move.eq(false))
+                    .execute(&self.db)?;
+            }
             GameTurn::Turn(user_id) => {
                 // set all players except user as not waiting
-                diesel::update(dsl::game_players.filter(dsl::game_id.eq(game_id).and(dsl::user_id.ne(user_id)))).set(dsl::waiting_for_move.eq(false)).execute(&self.db)?;
+                diesel::update(
+                    dsl::game_players
+                        .filter(dsl::game_id.eq(game_id).and(dsl::user_id.ne(user_id))),
+                )
+                .set(dsl::waiting_for_move.eq(false))
+                .execute(&self.db)?;
                 // set user as waiting
-                diesel::update(dsl::game_players.filter(dsl::game_id.eq(game_id).and(dsl::user_id.eq(user_id)))).set(dsl::waiting_for_move.eq(true)).execute(&self.db)?;
+                diesel::update(
+                    dsl::game_players
+                        .filter(dsl::game_id.eq(game_id).and(dsl::user_id.eq(user_id))),
+                )
+                .set(dsl::waiting_for_move.eq(true))
+                .execute(&self.db)?;
             }
         }
 
@@ -418,6 +437,24 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
                 Ok(())
             }
             None => Err(Error::InvalidNumberOfPlayers),
+        }
+    }
+
+    /// Make a move in a game as the given user
+    pub fn make_move(&self, game_id: GameId, user_id: UserId, play: &str) -> Result<(), Error> {
+        let (mut game, _) = self.find_game(game_id)?;
+        if let Some(ref mut inst) = game.instance {
+            match inst.turn() {
+                GameTurn::Turn(uid) if uid == user_id => {
+                    inst.make_move(user_id, play)
+                        .map_err(|e| Error::InvalidMove(e))?;
+                    self.save_game(&game)?;
+                    Ok(())
+                }
+                _ => Err(Error::NotTurn),
+            }
+        } else {
+            Err(Error::NotTurn)
         }
     }
 }

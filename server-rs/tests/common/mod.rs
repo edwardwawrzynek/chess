@@ -3,16 +3,16 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
 
+use diesel::{Connection, PgConnection, RunQueryDsl};
+use diesel_migrations::embed_migrations;
 use server_rs::db::GameTypeMap;
 use server_rs::*;
-use url::Url;
-use tungstenite::{connect, WebSocket, Message};
-use tungstenite::client::AutoStream;
-use std::time::Duration;
 use std::net::TcpListener;
-use diesel::{PgConnection, Connection, RunQueryDsl};
-use diesel_migrations::embed_migrations;
+use std::time::Duration;
+use tungstenite::client::AutoStream;
 use tungstenite::error::UrlError::UnableToConnect;
+use tungstenite::{connect, Message, WebSocket};
+use url::Url;
 
 embed_migrations!("migrations/");
 
@@ -26,11 +26,15 @@ struct PgTestContext {
 impl PgTestContext {
     fn new(base_url: &str, default_url: &str, db_name: &str) -> Self {
         // connect to default db and create test db
-        let conn = PgConnection::establish(default_url).expect("cannot connect to default pg database");
-        diesel::sql_query(format!("CREATE DATABASE {}", db_name)).execute(&conn).expect("couldn't create test database");
+        let conn =
+            PgConnection::establish(default_url).expect("cannot connect to default pg database");
+        diesel::sql_query(format!("CREATE DATABASE {}", db_name))
+            .execute(&conn)
+            .expect("couldn't create test database");
 
         // connect to test db and run migrations
-        let conn_test = PgConnection::establish(&format!("{}/{}", base_url, db_name)).expect("cannot connect to test database");
+        let conn_test = PgConnection::establish(&format!("{}/{}", base_url, db_name))
+            .expect("cannot connect to test database");
         embedded_migrations::run(&conn_test).expect("running migrations failed");
 
         PgTestContext {
@@ -40,11 +44,19 @@ impl PgTestContext {
     }
 
     fn remove(&mut self) {
-        let conn = PgConnection::establish(&self.default_url).expect("cannot connect to default pg database");
-        diesel::sql_query(format!("SELECT pg_terminate_backend(pid)
+        let conn = PgConnection::establish(&self.default_url)
+            .expect("cannot connect to default pg database");
+        diesel::sql_query(format!(
+            "SELECT pg_terminate_backend(pid)
 FROM pg_stat_activity
-WHERE datname = '{}';", self.db_name)).execute(&conn).expect("cannot disconnect db users");
-        diesel::sql_query(format!("DROP DATABASE {}", self.db_name)).execute(&conn).expect("cannot drop test database");
+WHERE datname = '{}';",
+            self.db_name
+        ))
+        .execute(&conn)
+        .expect("cannot disconnect db users");
+        diesel::sql_query(format!("DROP DATABASE {}", self.db_name))
+            .execute(&conn)
+            .expect("cannot drop test database");
     }
 }
 
@@ -128,23 +140,29 @@ pub async fn session_test(test: &str) {
     let port = addr.port();
     drop(listener);
 
-    let base_url = env::var("DATABASE_TEST_BASE_URL")
-        .expect("DATABASE_TEST_BASE_URL must be set");
-    let default_url = env::var("DATABASE_TEST_DEFAULT_URL")
-        .expect("DATABASE_TEST_DEFAULT_URL must be set");
+    let base_url = env::var("DATABASE_TEST_BASE_URL").expect("DATABASE_TEST_BASE_URL must be set");
+    let default_url =
+        env::var("DATABASE_TEST_DEFAULT_URL").expect("DATABASE_TEST_DEFAULT_URL must be set");
     let db_name = format!("server_rs_test_{}", port);
     let mut db_test_ctx = PgTestContext::new(&*base_url, &*default_url, &*db_name);
 
     // start the server
     tokio::spawn((async move || {
-        server::run_server(&*format!("127.0.0.1:{}", port), &format!("{}/{}", base_url, db_name), Arc::new(game_type_map)).await;
+        server::run_server(
+            &*format!("127.0.0.1:{}", port),
+            &format!("{}/{}", base_url, db_name),
+            Arc::new(game_type_map),
+        )
+        .await;
     })());
 
     let ws_url = format!("ws://127.0.0.1:{}", port);
 
     // wait for server to start
     tokio::time::sleep(Duration::from_millis(100)).await;
-    while let Err(tungstenite::Error::Url(UnableToConnect(_))) = connect(Url::parse(&*ws_url).expect("couldn't parse server url")) {
+    while let Err(tungstenite::Error::Url(UnableToConnect(_))) =
+        connect(Url::parse(&*ws_url).expect("couldn't parse server url"))
+    {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
@@ -152,17 +170,28 @@ pub async fn session_test(test: &str) {
     let (lines, num_clients) = parse_session_test(test).expect("failed to parse session test case");
 
     // open connections to server
-    let mut conns: Vec<WebSocket<AutoStream>> = (0..num_clients).into_iter().map(|_|
-        connect(Url::parse(&*ws_url).expect("couldn't parse server url")).expect("couldn't connect to server").0
-    ).collect();
+    let mut conns: Vec<WebSocket<AutoStream>> = (0..num_clients)
+        .into_iter()
+        .map(|_| {
+            connect(Url::parse(&*ws_url).expect("couldn't parse server url"))
+                .expect("couldn't connect to server")
+                .0
+        })
+        .collect();
 
     for line in &lines {
         match line {
             SessionTestLine::Client { id, cmd } => {
-                conns[*id - 1].write_message(Message::Text(cmd.clone())).expect("can't send message to server");
-            },
+                conns[*id - 1]
+                    .write_message(Message::Text(cmd.clone()))
+                    .expect("can't send message to server");
+            }
             SessionTestLine::Server { id, cmd } => {
-                let response = conns[*id - 1].read_message().expect("error reading message from server").into_text().expect("response isn't text");
+                let response = conns[*id - 1]
+                    .read_message()
+                    .expect("error reading message from server")
+                    .into_text()
+                    .expect("response isn't text");
                 if response != *cmd {
                     panic!(format!("response from server doesn't match expected:\nresponse: [S{}] {}\nexpected: [S{}] {}", *id, response, *id, cmd));
                 }

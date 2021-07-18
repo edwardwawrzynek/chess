@@ -29,12 +29,14 @@ pub enum Error {
     NoSuchGame,
     AlreadyInGame,
     GameAlreadyStarted,
+    NotTurn,
     DontOwnGame,
     InvalidNumberOfPlayers,
     NotInGame,
     MalformedId,
     NoSuchGameType(String),
     InvalidProtocolVersion,
+    InvalidMove(String),
 }
 
 impl PartialEq for Error {
@@ -121,6 +123,10 @@ impl PartialEq for Error {
                 GameAlreadyStarted => true,
                 _ => false,
             },
+            NotTurn => match other {
+                NotTurn => true,
+                _ => false,
+            },
             InvalidNumberOfPlayers => match other {
                 InvalidNumberOfPlayers => true,
                 _ => false,
@@ -139,6 +145,10 @@ impl PartialEq for Error {
             },
             InvalidProtocolVersion => match other {
                 InvalidProtocolVersion => true,
+                _ => false,
+            },
+            InvalidMove(error) => match other {
+                InvalidMove(other_error) => *error == *other_error,
                 _ => false,
             },
         }
@@ -206,6 +216,8 @@ impl fmt::Display for Error {
             MalformedId => write!(f, "malformed id"),
             NoSuchGameType(game_type) => write!(f, "unsupported game type: {}", *game_type),
             InvalidProtocolVersion => write!(f, "invalid protocol version"),
+            NotTurn => write!(f, "it is not your turn to move in that game"),
+            InvalidMove(error) => write!(f, "invalid move: {}", *error),
         }
     }
 }

@@ -206,13 +206,16 @@ fn serialize_game_for_player(game: &Game) -> Option<(UserId, ServerCommand)> {
                 GameTurn::Turn(user_id) => {
                     let state = format!("{}", Fmt(|f| inst.serialize_current(f)));
                     // TODO: serialize based on protocol version
-                    Some((user_id, ServerCommand::Go {
-                        id: game.id,
-                        game_type: game.game_type.clone(),
-                        time_ms: 0,
-                        time_for_turn_ms: 0,
-                        state: Some(state)
-                    }))
+                    Some((
+                        user_id,
+                        ServerCommand::Go {
+                            id: game.id,
+                            game_type: game.game_type.clone(),
+                            time_ms: 0,
+                            time_for_turn_ms: 0,
+                            state: Some(state),
+                        },
+                    ))
                 }
             }
         }
@@ -220,7 +223,10 @@ fn serialize_game_for_player(game: &Game) -> Option<(UserId, ServerCommand)> {
 }
 
 /// Return a list of go commands for all the active games a player is in that are waiting on that player to move
-fn serialize_waiting_games_for_user<F: Fn(&Game, &Vec<GamePlayer>)>(user_id: UserId, db: &DBWrapper<F>) -> Result<Vec<ServerCommand>, Error> {
+fn serialize_waiting_games_for_user<F: Fn(&Game, &Vec<GamePlayer>)>(
+    user_id: UserId,
+    db: &DBWrapper<F>,
+) -> Result<Vec<ServerCommand>, Error> {
     let games = db.find_waiting_games_for_user(user_id)?;
     let mut res = Vec::new();
     for game_id in games {
@@ -254,9 +260,10 @@ fn handle_cmd(
             .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
         // send game to player whose turn it is
         if let Some((user_id, cmd)) = serialize_game_for_player(game) {
-            clients().publish(Topic::UserPrivate(user_id), &Message::from(cmd.to_string())).unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
+            clients()
+                .publish(Topic::UserPrivate(user_id), &Message::from(cmd.to_string()))
+                .unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
         }
-
     };
     // get a database connection
     let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update);
@@ -274,7 +281,12 @@ fn handle_cmd(
     }
 
     // send waiting games for user
-    fn send_waiting_games<F: Fn(&Game, &Vec<GamePlayer>)>(user_id: UserId, db: &DBWrapper<F>, client_addr: &SocketAddr, clients: MutexGuard<ClientMap>) -> Result<(), Error> {
+    fn send_waiting_games<F: Fn(&Game, &Vec<GamePlayer>)>(
+        user_id: UserId,
+        db: &DBWrapper<F>,
+        client_addr: &SocketAddr,
+        clients: MutexGuard<ClientMap>,
+    ) -> Result<(), Error> {
         let cmds = serialize_waiting_games_for_user(user_id, db)?;
         for cmd in &cmds {
             clients.send(client_addr, Message::from(cmd.to_string()))?;
@@ -283,7 +295,12 @@ fn handle_cmd(
     }
 
     // login as a user
-    fn login<F: Fn(&Game, &Vec<GamePlayer>)>(user_id: UserId, client_addr: &SocketAddr, db: &DBWrapper<F>, mut clients: MutexGuard<ClientMap>) -> Result<(), Error> {
+    fn login<F: Fn(&Game, &Vec<GamePlayer>)>(
+        user_id: UserId,
+        client_addr: &SocketAddr,
+        db: &DBWrapper<F>,
+        mut clients: MutexGuard<ClientMap>,
+    ) -> Result<(), Error> {
         clients.add_as_user(user_id, *client_addr);
         send_waiting_games(user_id, db, client_addr, clients)?;
         Ok(())
@@ -394,7 +411,10 @@ fn handle_cmd(
             Ok(None)
         }
         Play { id, play } => {
-            todo!("IMPLEMENT")
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            db.make_move(*id, user.id, *play)?;
+            Ok(None)
         }
     }
 }
