@@ -25,8 +25,8 @@ enum Topic {
     Global,
     /// Messages for all clients logged in as a particular user
     UserPrivate(UserId),
-    /// Messages about a particular user
-    User(UserId),
+    /// Messages for all clients logged in as a particular user using a certain protocol version
+    UserPrivateProtocolVersion(UserId, ProtocolVersion),
     /// Messages about a particular game
     Game(GameId),
 }
@@ -71,14 +71,20 @@ impl ClientMap {
     }
 
     /// Add a client to a topic, creating that topic if it doesn't exist.
+    fn add_to_priv_topic(&mut self, topic: Topic, client: SocketAddr) {
+        let topic_map = self.topics.entry(topic).or_insert(HashSet::new());
+        topic_map.insert(client);
+    }
+
+    /// Add a client to a topic, creating that topic if it doesn't exist.
     /// In order to register for UserPrivate topics, add_as_user must be used instead.
     pub fn add_to_topic(&mut self, topic: Topic, client: SocketAddr) {
         // clients must register on private topics through add_as_user (to lessen accidental registration for private messages)
-        if let Topic::UserPrivate(_) = topic {
-            return;
+        match topic {
+            Topic::UserPrivate(_) | Topic::UserPrivateProtocolVersion(_, _) => return,
+            _ => {}
         }
-        let topic_map = self.topics.entry(topic).or_insert(HashSet::new());
-        topic_map.insert(client);
+        self.add_to_priv_topic(topic, client);
     }
 
     /// Check if a client is registered as a logged in user
@@ -90,6 +96,14 @@ impl ClientMap {
     pub fn remove_as_user(&mut self, client: &SocketAddr) {
         if let Some(old_user) = self.is_user(&client) {
             self.remove_from_topic(Topic::UserPrivate(old_user), client);
+            self.remove_from_topic(
+                Topic::UserPrivateProtocolVersion(old_user, ProtocolVersion::Current),
+                client,
+            );
+            self.remove_from_topic(
+                Topic::UserPrivateProtocolVersion(old_user, ProtocolVersion::Legacy),
+                client,
+            );
         }
         self.users.remove(client);
     }
@@ -98,12 +112,13 @@ impl ClientMap {
     /// If the client had been previously registered as a different user, unregister them.
     pub fn add_as_user(&mut self, user_id: UserId, client: SocketAddr) {
         self.remove_as_user(&client);
-        let topic_map = self
-            .topics
-            .entry(Topic::UserPrivate(user_id))
-            .or_insert(HashSet::new());
-        topic_map.insert(client);
         self.users.insert(client, user_id);
+
+        self.add_to_priv_topic(Topic::UserPrivate(user_id), client);
+        self.add_to_priv_topic(
+            Topic::UserPrivateProtocolVersion(user_id, self.protocol_ver(&client)),
+            client,
+        );
     }
 
     /// Remove a client from a topic (if the client is in that topic)
@@ -158,8 +173,25 @@ impl ClientMap {
 
     /// Set a connection's protocol version
     pub fn set_protocol_ver(&mut self, client: &SocketAddr, ver: ProtocolVersion) {
+        let user = self.is_user(client);
         match self.channels.get_mut(client) {
-            Some(conn) => conn.protocol = ver,
+            Some(conn) => {
+                let old_ver = conn.protocol;
+                conn.protocol = ver;
+
+                if let Some(user_id) = user {
+                    // remove from old protocol topic
+                    self.remove_from_topic(
+                        Topic::UserPrivateProtocolVersion(user_id, old_ver),
+                        client,
+                    );
+                    // add to new protocol topic
+                    self.add_to_priv_topic(
+                        Topic::UserPrivateProtocolVersion(user_id, ver),
+                        *client,
+                    );
+                }
+            }
             None => {}
         }
     }
@@ -196,47 +228,79 @@ fn serialize_game_state(game: &Game, players: &Vec<GamePlayer>) -> ServerCommand
     }
 }
 
-/// Convert a game to a go command for its active player
-fn serialize_game_for_player(game: &Game) -> Option<(UserId, ServerCommand)> {
+/// Convert a game to a go or board command for its active player
+fn serialize_game_for_player(
+    game: &Game,
+    protocol: ProtocolVersion,
+) -> Option<(UserId, ServerCommand)> {
     match &game.instance {
         &None => None,
-        Some(inst) => {
-            match inst.turn() {
-                GameTurn::Finished => None,
-                GameTurn::Turn(user_id) => {
-                    let state = format!("{}", Fmt(|f| inst.serialize_current(f)));
-                    // TODO: serialize based on protocol version
-                    Some((
-                        user_id,
-                        ServerCommand::Go {
+        Some(inst) => match inst.turn() {
+            GameTurn::Finished => None,
+            GameTurn::Turn(user_id) => {
+                let state = format!("{}", Fmt(|f| inst.serialize_current(f)));
+                Some((
+                    user_id,
+                    match protocol {
+                        ProtocolVersion::Current => ServerCommand::Go {
                             id: game.id,
                             game_type: game.game_type.clone(),
                             time_ms: 0,
                             time_for_turn_ms: 0,
                             state: Some(state),
                         },
-                    ))
-                }
+                        ProtocolVersion::Legacy => ServerCommand::Board { state: Some(state) },
+                    },
+                ))
             }
-        }
+        },
     }
 }
 
 /// Return a list of go commands for all the active games a player is in that are waiting on that player to move
-fn serialize_waiting_games_for_user<F: Fn(&Game, &Vec<GamePlayer>)>(
+fn serialize_waiting_games_for_user(
     user_id: UserId,
-    db: &DBWrapper<F>,
+    db: &DBWrapper,
+    protocol: ProtocolVersion,
 ) -> Result<Vec<ServerCommand>, Error> {
     let games = db.find_waiting_games_for_user(user_id)?;
     let mut res = Vec::new();
+    // if in legacy mode, only send oldest game
+    let games = match protocol {
+        ProtocolVersion::Current => &*games,
+        ProtocolVersion::Legacy => {
+            if games.len() >= 1 {
+                &games[games.len() - 1..]
+            } else {
+                &*games
+            }
+        }
+    };
     for game_id in games {
-        let (game, _) = db.find_game(game_id)?;
-        if let Some((uid, cmd)) = serialize_game_for_player(&game) {
+        let (game, _) = db.find_game(*game_id)?;
+        if let Some((uid, cmd)) = serialize_game_for_player(&game, protocol) {
             assert_eq!(uid, user_id);
             res.push(cmd);
         }
     }
     Ok(res)
+}
+
+/// Check if a user connected on a specific protocol version should receive go or board commands for a given game.
+/// For `ProtocolVersion::Current`, this is always true. For `ProtocolVersion::Legacy`, this is only true if the game is the oldest game a player has to make a move in (since the legacy protocol only allows clients to consider one game at once).
+fn user_should_receive_game_update(
+    user_id: UserId,
+    game_id: GameId,
+    db: &DBWrapper,
+    protocol: ProtocolVersion,
+) -> Result<bool, Error> {
+    match protocol {
+        ProtocolVersion::Current => Ok(true),
+        ProtocolVersion::Legacy => match db.find_oldest_waiting_game_for_user(user_id)? {
+            Some(gid) => Ok(gid == game_id),
+            None => Ok(false),
+        },
+    }
 }
 
 /// Apply a command sent by a client and return a response (if necessary)
@@ -251,25 +315,35 @@ fn handle_cmd(
 
     // lock the client map
     let clients = || client_map.lock().unwrap();
+
     // callback when a game's state changes
-    let game_update = |game: &Game, players: &Vec<GamePlayer>| {
+    let game_update = |game: &Game, players: &Vec<GamePlayer>, db: &DBWrapper| {
         // send game state to all observers
         let cmd = serialize_game_state(game, players);
         clients()
             .publish(Topic::Game(game.id), &Message::from(cmd.to_string()))
             .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
         // send game to player whose turn it is
-        if let Some((user_id, cmd)) = serialize_game_for_player(game) {
-            clients()
-                .publish(Topic::UserPrivate(user_id), &Message::from(cmd.to_string()))
-                .unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
+        for protocol in [ProtocolVersion::Current, ProtocolVersion::Legacy] {
+            if let Some((user_id, cmd)) = serialize_game_for_player(game, protocol) {
+                if user_should_receive_game_update(user_id, game.id, db, protocol).unwrap_or(false)
+                {
+                    clients()
+                        .publish(
+                            Topic::UserPrivateProtocolVersion(user_id, protocol),
+                            &Message::from(cmd.to_string()),
+                        )
+                        .unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
+                }
+            }
         }
     };
+
     // get a database connection
     let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update);
     // load the current user
-    fn user<F: Fn(&Game, &Vec<GamePlayer>)>(
-        db: &DBWrapper<F>,
+    fn user(
+        db: &DBWrapper,
         client_addr: &SocketAddr,
         clients: MutexGuard<ClientMap>,
     ) -> Result<User, Error> {
@@ -281,13 +355,14 @@ fn handle_cmd(
     }
 
     // send waiting games for user
-    fn send_waiting_games<F: Fn(&Game, &Vec<GamePlayer>)>(
+    fn send_waiting_games(
         user_id: UserId,
-        db: &DBWrapper<F>,
+        db: &DBWrapper,
         client_addr: &SocketAddr,
         clients: MutexGuard<ClientMap>,
     ) -> Result<(), Error> {
-        let cmds = serialize_waiting_games_for_user(user_id, db)?;
+        let cmds =
+            serialize_waiting_games_for_user(user_id, db, clients.protocol_ver(client_addr))?;
         for cmd in &cmds {
             clients.send(client_addr, Message::from(cmd.to_string()))?;
         }
@@ -295,16 +370,26 @@ fn handle_cmd(
     }
 
     // login as a user
-    fn login<F: Fn(&Game, &Vec<GamePlayer>)>(
+    fn login(
         user_id: UserId,
         client_addr: &SocketAddr,
-        db: &DBWrapper<F>,
+        db: &DBWrapper,
         mut clients: MutexGuard<ClientMap>,
     ) -> Result<(), Error> {
         clients.add_as_user(user_id, *client_addr);
         send_waiting_games(user_id, db, client_addr, clients)?;
         Ok(())
     }
+
+    // expect a specific protocol version
+    let expect_proto = |expected: ProtocolVersion| {
+        let proto = clients().protocol_ver(client_addr);
+        if proto != expected {
+            Err(Error::InvalidProtocolForCommand { proto, expected })
+        } else {
+            Ok(())
+        }
+    };
 
     match cmd {
         Version(ver) => {
@@ -411,10 +496,24 @@ fn handle_cmd(
             Ok(None)
         }
         Play { id, play } => {
+            expect_proto(ProtocolVersion::Current)?;
             let db = &db()?;
             let user = user(db, client_addr, clients())?;
             db.make_move(*id, user.id, *play)?;
             Ok(None)
+        }
+        Move(play) => {
+            expect_proto(ProtocolVersion::Legacy)?;
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            let game_id = db.find_oldest_waiting_game_for_user(user.id)?;
+            match game_id {
+                None => Err(Error::NotTurn),
+                Some(game_id) => {
+                    db.make_move(game_id, user.id, *play)?;
+                    Ok(None)
+                }
+            }
         }
     }
 }

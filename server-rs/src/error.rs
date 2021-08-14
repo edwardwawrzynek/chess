@@ -2,6 +2,7 @@ use bcrypt;
 use diesel;
 use r2d2;
 
+use crate::cmd::ProtocolVersion;
 use futures_channel::mpsc;
 use std::fmt;
 use tungstenite::protocol::Message;
@@ -37,6 +38,10 @@ pub enum Error {
     NoSuchGameType(String),
     InvalidProtocolVersion,
     InvalidMove(String),
+    InvalidProtocolForCommand {
+        proto: ProtocolVersion,
+        expected: ProtocolVersion,
+    },
 }
 
 impl PartialEq for Error {
@@ -151,6 +156,13 @@ impl PartialEq for Error {
                 InvalidMove(other_error) => *error == *other_error,
                 _ => false,
             },
+            InvalidProtocolForCommand { proto, expected } => match other {
+                InvalidProtocolForCommand {
+                    proto: other_proto,
+                    expected: other_expected,
+                } => proto == other_proto && expected == other_expected,
+                _ => false,
+            },
         }
     }
 }
@@ -218,6 +230,11 @@ impl fmt::Display for Error {
             InvalidProtocolVersion => write!(f, "invalid protocol version"),
             NotTurn => write!(f, "it is not your turn to move in that game"),
             InvalidMove(error) => write!(f, "invalid move: {}", *error),
+            InvalidProtocolForCommand { proto, expected } => write!(
+                f,
+                "that command is only available in protocol version {} (you are in version {})",
+                expected, proto
+            ),
         }
     }
 }

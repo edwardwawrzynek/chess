@@ -94,23 +94,23 @@ pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
 }
 
 /// A database connection wrapper, which associates the database with functions to manipulate it
-pub struct DBWrapper<'a, F: Fn(&Game, &Vec<GamePlayer>)> {
+pub struct DBWrapper<'a, 'b> {
     db: PooledConnection<ConnectionManager<PgConnection>>,
     game_type_map: &'a GameTypeMap,
-    game_update_callback: F,
+    game_update_callback: Box<dyn Fn(&Game, &Vec<GamePlayer>, &DBWrapper<'a, 'b>) + 'b>,
 }
 
-impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
+impl DBWrapper<'_, '_> {
     /// Wrap an existing pg connection
-    pub fn from_pg_pool<'a>(
+    pub fn from_pg_pool<'a, 'b>(
         pool: &PgPool,
         type_map: &'a GameTypeMap,
-        game_update_callback: F,
-    ) -> Result<DBWrapper<'a, F>, Error> {
+        game_update_callback: impl Fn(&Game, &Vec<GamePlayer>, &DBWrapper<'a, 'b>) + 'b,
+    ) -> Result<DBWrapper<'a, 'b>, Error> {
         Ok(DBWrapper {
             db: pool.get()?,
             game_type_map: type_map,
-            game_update_callback,
+            game_update_callback: Box::new(game_update_callback),
         })
     }
 
@@ -311,7 +311,7 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
             .get_result::<GamePlayer>(&self.db)?;
 
         players.push(new_player);
-        (self.game_update_callback)(&game, &players);
+        (self.game_update_callback)(&game, &players, self);
         Ok(players.pop().unwrap())
     }
 
@@ -329,7 +329,7 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
         if let Some(index) = players.iter().position(|p| p.user_id == user_id) {
             players.remove(index);
         }
-        (self.game_update_callback)(&game, &players);
+        (self.game_update_callback)(&game, &players, self);
         Ok(())
     }
 
@@ -352,12 +352,25 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
     /// Find all games a user is in that are waiting for that user to play
     pub fn find_waiting_games_for_user(&self, user_id: UserId) -> Result<Vec<GameId>, Error> {
         use game_players::dsl;
-        // TODO: limit number of games loaded to number user has requested to play in at once
         Ok(dsl::game_players
             .filter(dsl::user_id.eq(user_id).and(dsl::waiting_for_move.eq(true)))
             .order(dsl::id.asc())
             .select(dsl::game_id)
             .load::<GameId>(&self.db)?)
+    }
+
+    /// Find the oldest game a user is in that is waiting for that user to play
+    pub fn find_oldest_waiting_game_for_user(
+        &self,
+        user_id: UserId,
+    ) -> Result<Option<GameId>, Error> {
+        use game_players::dsl;
+        Ok(dsl::game_players
+            .filter(dsl::user_id.eq(user_id).and(dsl::waiting_for_move.eq(true)))
+            .order(dsl::id.asc())
+            .select(dsl::game_id)
+            .first::<GameId>(&self.db)
+            .optional()?)
     }
 
     /// Update the waiting_to_move status for players in a game
@@ -410,7 +423,7 @@ impl<F: Fn(&Game, &Vec<GamePlayer>)> DBWrapper<'_, F> {
 
             self.update_waiting_to_move_for_players(game.id, instance.as_ref())?;
         }
-        (self.game_update_callback)(game, &players);
+        (self.game_update_callback)(game, &players, self);
         Ok(())
     }
 

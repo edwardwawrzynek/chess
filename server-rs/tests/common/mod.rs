@@ -73,7 +73,15 @@ fn parse_session_test(test: &str) -> Result<(Vec<SessionTestLine>, usize), Strin
     let mut max_id = 0;
     for line in test.split('\n') {
         let line = line.trim();
+        // ignore black lines
         if line.len() == 0 {
+            continue;
+        }
+        // ignore comment lines
+        if line.len() >= 2
+            && line.chars().nth(0).unwrap() == '/'
+            && line.chars().nth(1).unwrap() == '/'
+        {
             continue;
         }
         if line.len() < 4 {
@@ -147,7 +155,7 @@ pub async fn session_test(test: &str) {
     let mut db_test_ctx = PgTestContext::new(&*base_url, &*default_url, &*db_name);
 
     // start the server
-    tokio::spawn((async move || {
+    tokio::spawn((|| async move {
         server::run_server(
             &*format!("127.0.0.1:{}", port),
             &format!("{}/{}", base_url, db_name),
@@ -193,7 +201,7 @@ pub async fn session_test(test: &str) {
                     .into_text()
                     .expect("response isn't text");
                 if response != *cmd {
-                    panic!(format!("response from server doesn't match expected:\nresponse: [S{}] {}\nexpected: [S{}] {}", *id, response, *id, cmd));
+                    panic!("response from server doesn't match expected:\nresponse: [S{}] {}\nexpected: [S{}] {}", *id, response, *id, cmd);
                 }
             }
         }

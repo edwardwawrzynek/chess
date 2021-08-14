@@ -1,5 +1,3 @@
-#![feature(async_closure)]
-
 use server_rs::*;
 
 use db::GameTypeMap;

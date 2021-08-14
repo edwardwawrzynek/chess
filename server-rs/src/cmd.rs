@@ -6,12 +6,22 @@ use lazy_static;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
+use std::fmt::{Display, Formatter};
 
 /// Protocol Versions
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Hash)]
 pub enum ProtocolVersion {
     Legacy,
     Current,
+}
+
+impl Display for ProtocolVersion {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ProtocolVersion::Legacy => write!(f, "1"),
+            ProtocolVersion::Current => write!(f, "2"),
+        }
+    }
 }
 
 impl TryFrom<i32> for ProtocolVersion {
@@ -62,6 +72,8 @@ pub enum ServerCommand {
         time_for_turn_ms: u64,
         state: Option<String>,
     },
+    /// Send a game to the client to make a move on (legacy)
+    Board { state: Option<String> },
 }
 
 /// A command sent to the server from the client
@@ -105,6 +117,8 @@ pub enum ClientCommand<'a> {
     StartGame(GameId),
     /// Make a move in a game
     Play { id: GameId, play: &'a str },
+    /// Make a move in a game (legacy)
+    Move(&'a str),
 }
 
 impl fmt::Display for ServerCommand {
@@ -170,6 +184,7 @@ impl fmt::Display for ServerCommand {
                 time_for_turn_ms,
                 *state.as_ref().unwrap_or(&dash_str)
             ),
+            &Board { ref state } => write!(f, "board {}", *state.as_ref().unwrap_or(&dash_str)),
         }
     }
 }
@@ -218,6 +233,7 @@ lazy_static! {
         m.insert("start_game", 1);
         m.insert("version", 1);
         m.insert("play", 2);
+        m.insert("move", 1);
         m
     };
 }
@@ -284,6 +300,7 @@ impl ClientCommand<'_> {
                 id: parse_id(args[0])?,
                 play: args[1],
             }),
+            "move" => Ok(Move(args[0])),
             _ => Err(Error::InvalidCommand(cmd.to_string())),
         }
     }
@@ -341,6 +358,13 @@ mod tests {
             }
             .to_string(),
             "go 1, some_game, 1234, 321, STATE"
+        );
+        assert_eq!(
+            ServerCommand::Board {
+                state: Some("STATE".to_string())
+            }
+            .to_string(),
+            "board STATE"
         );
     }
 
@@ -452,6 +476,10 @@ mod tests {
                 id: 1,
                 play: "e2e4"
             })
+        );
+        assert_eq!(
+            ClientCommand::deserialize("move e2e4"),
+            Ok(ClientCommand::Move("e2e4"))
         );
     }
 }

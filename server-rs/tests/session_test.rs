@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #[macro_use]
 extern crate diesel_migrations;
 
@@ -206,4 +205,61 @@ async fn test_game_play() {
 [C1] version 2
 [S1] okay
     "#).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_game_protocol_versions() {
+    session_test(
+        r#"
+// setup three clients, with C1 & C3 on the same user, but different versions
+[C1] version 2
+[S1] okay
+[C2] version 2
+[S2] okay
+[C3] version 1
+[C1] new_user Test, test@example.com, password
+[S1] okay
+[C2] new_tmp_user Test2
+[S2] okay
+[C3] login test@example.com, password
+[C1] new_game chess
+[S1] new_game 1
+[C3] new_game chess
+[S3] new_game 2
+[C1] join_game 1
+[S1] okay
+[C2] join_game 1
+[S2] okay
+[C1] join_game 2
+[S1] okay
+[C2] join_game 2
+[S2] okay
+[C1] start_game 1
+// both C1 & C3 get game 1
+[S1] go 1, chess, 0, 0, rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+[S3] board rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+[S1] okay
+[C1] start_game 2
+// only C1 gets game 2 (since C3 is in legacy, and only gets one game at a time)
+[S1] go 2, chess, 0, 0, rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+[S1] okay
+[C1] play 2, e2e4
+[S1] okay
+[S2] go 2, chess, 0, 0, rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
+[C2] play 2, f7f6
+[S2] okay
+[S1] go 2, chess, 0, 0, rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+// move plays in oldest game (1)
+[C3] move e2e4
+[S2] go 1, chess, 0, 0, rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1
+[C1] version 1
+[C2] play 1, f7f6
+[S2] okay
+[S1] board rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+[S3] board rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+[C1] play 1, a1a1
+[S1] error that command is only available in protocol version 2 (you are in version 1)
+    "#,
+    )
+    .await;
 }
