@@ -166,6 +166,16 @@ async fn test_game_observe() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_game_play() {
     session_test(r#"
+// create a few users to make user id and game player id not match
+[C3] version 2
+[S3] okay
+[C3] new_tmp_user Random1
+[S3] okay
+[C3] new_tmp_user Random2
+[S3] okay
+[C3] new_tmp_user Random3
+[S3] okay
+// create real users
 [C1] version 2
 [S1] okay
 [C2] version 2
@@ -196,9 +206,9 @@ async fn test_game_play() {
 [S2] okay
 [S1] go 1, chess, 0, 0, rnbqkbnr/ppppp2p/5p2/6p1/4P3/P7/1PPP1PPP/RNBQKBNR w KQkq g6 0 3
 [C1] observe_game 1
-[S1] game 1, chess, 1, true, false, -, [[1, 0], [2, 0]], rnbqkbnr/ppppp2p/5p2/6p1/4P3/P7/1PPP1PPP/RNBQKBNR w KQkq g6 0 3,[e2e4,f7f6,a2a3,g7g5]
+[S1] game 1, chess, 4, true, false, -, [[4, 0], [5, 0]], rnbqkbnr/ppppp2p/5p2/6p1/4P3/P7/1PPP1PPP/RNBQKBNR w KQkq g6 0 3,[e2e4,f7f6,a2a3,g7g5]
 [C1] play 1, d1h5
-[S1] game 1, chess, 1, true, true, 1, [[1, 1], [2, 0]], rnbqkbnr/ppppp2p/5p2/6pQ/4P3/P7/1PPP1PPP/RNB1KBNR b KQkq - 0 3,[e2e4,f7f6,a2a3,g7g5,d1h5]
+[S1] game 1, chess, 4, true, true, 4, [[4, 1], [5, 0]], rnbqkbnr/ppppp2p/5p2/6pQ/4P3/P7/1PPP1PPP/RNB1KBNR b KQkq - 0 3,[e2e4,f7f6,a2a3,g7g5,d1h5]
 [S1] okay
 [C2] version 2
 [S2] okay
@@ -237,7 +247,7 @@ async fn test_game_protocol_versions() {
 [C1] start_game 1
 // both C1 & C3 get game 1
 [S1] go 1, chess, 0, 0, rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-[S3] board rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+[S3] position rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 [S1] okay
 [C1] start_game 2
 // only C1 gets game 2 (since C3 is in legacy, and only gets one game at a time)
@@ -255,8 +265,8 @@ async fn test_game_protocol_versions() {
 [C1] version 1
 [C2] play 1, f7f6
 [S2] okay
-[S1] board rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
-[S3] board rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+[S1] position rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
+[S3] position rnbqkbnr/ppppp1pp/5p2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2
 [C1] play 1, a1a1
 [S1] error that command is only available in protocol version 2 (you are in version 1)
     "#,

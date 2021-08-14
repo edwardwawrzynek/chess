@@ -9,7 +9,9 @@ use crate::schema::{game_players, games, users};
 use bcrypt;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PoolError, PooledConnection};
+use std::cmp::{max, min};
 use std::collections::HashMap;
+use std::time::{Duration, Instant, SystemTime};
 
 impl User {
     pub fn check_password(&self, password: &str) -> bool {
@@ -25,6 +27,55 @@ impl User {
 
 // mapping from game type string to GameType
 pub type GameTypeMap = HashMap<&'static str, Box<dyn GameType>>;
+
+// game timing information
+pub struct GameTime {
+    // time per move for each player
+    dur_per_move: Duration,
+    // sudden death time left for each player
+    player_times: HashMap<UserId, Duration>,
+    // when the current player started their move
+    current_move_start: Option<(UserId, SystemTime)>,
+}
+
+impl GameTime {
+    /// update timing information for the current instant.
+    /// return true if the current player's time has expired.
+    fn update(&mut self, new_player: Option<UserId>) -> bool {
+        let expired = if let (user_id, start) = self.current_move_start {
+            let time = start.elapsed().or_else(Duration::from_secs(0));
+            // amount of lost sudden death time
+            let lost_sd_time = max(Duration::from_secs(0), time - self.dur_per_move);
+            // subtract lost time
+            let mut remaining_time = self.player_times.get_mut(&user_id).unwrap();
+            *remaining_time -= lost_sd_time;
+
+            *remaining_time < Duration::from_secs(0)
+        } else {
+            false
+        };
+        // setup new current user
+        self.current_move_start = match new_player {
+            None => None,
+            Some(new_player) => Some((new_player, SystemTime::now())),
+        };
+
+        expired
+    }
+
+    /// Create new game timing
+    fn new(users: Vec<UserId>, dur_per_move: Duration, dur_sudden_death: Duration) -> Self {
+        let mut times = HashMap::new();
+        for user in users {
+            times.insert(user, dur_sudden_death);
+        }
+        GameTime {
+            dur_per_move,
+            player_times,
+            current_move_start: None,
+        }
+    }
+}
 
 // in memory representation of a game
 pub struct Game {
@@ -413,15 +464,15 @@ impl DBWrapper<'_, '_> {
         self.save_dbgame(&game.to_dbgame())?;
         let mut players = self.find_game_players(game.id)?;
         if let Some(instance) = &game.instance {
+            // update waiting to move
+            self.update_waiting_to_move_for_players(game.id, instance.as_ref())?;
             // save scores
             if let Some(scores) = instance.scores() {
                 for player in &mut players {
-                    player.score = Some(scores[&player.id]);
+                    player.score = Some(scores[&player.user_id]);
                     self.save_game_player(player)?;
                 }
             }
-
-            self.update_waiting_to_move_for_players(game.id, instance.as_ref())?;
         }
         (self.game_update_callback)(game, &players, self);
         Ok(())

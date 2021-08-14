@@ -73,7 +73,7 @@ pub enum ServerCommand {
         state: Option<String>,
     },
     /// Send a game to the client to make a move on (legacy)
-    Board { state: Option<String> },
+    Position { state: Option<String> },
 }
 
 /// A command sent to the server from the client
@@ -184,7 +184,9 @@ impl fmt::Display for ServerCommand {
                 time_for_turn_ms,
                 *state.as_ref().unwrap_or(&dash_str)
             ),
-            &Board { ref state } => write!(f, "board {}", *state.as_ref().unwrap_or(&dash_str)),
+            &Position { ref state } => {
+                write!(f, "position {}", *state.as_ref().unwrap_or(&dash_str))
+            }
         }
     }
 }
@@ -360,11 +362,11 @@ mod tests {
             "go 1, some_game, 1234, 321, STATE"
         );
         assert_eq!(
-            ServerCommand::Board {
+            ServerCommand::Position {
                 state: Some("STATE".to_string())
             }
             .to_string(),
-            "board STATE"
+            "position STATE"
         );
     }
 

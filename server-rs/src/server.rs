@@ -249,7 +249,7 @@ fn serialize_game_for_player(
                             time_for_turn_ms: 0,
                             state: Some(state),
                         },
-                        ProtocolVersion::Legacy => ServerCommand::Board { state: Some(state) },
+                        ProtocolVersion::Legacy => ServerCommand::Position { state: Some(state) },
                     },
                 ))
             }
@@ -270,7 +270,7 @@ fn serialize_waiting_games_for_user(
         ProtocolVersion::Current => &*games,
         ProtocolVersion::Legacy => {
             if games.len() >= 1 {
-                &games[games.len() - 1..]
+                &games[..1]
             } else {
                 &*games
             }
@@ -534,6 +534,11 @@ fn handle_message(
         match msg.to_text() {
             Err(_) => Err(Error::MessageParseError),
             Ok(txt) => {
+                println!(
+                    "{}: {}",
+                    client_map.lock().unwrap().is_user(client_addr).unwrap_or(0),
+                    txt
+                );
                 let cmd = ClientCommand::deserialize(txt);
                 match cmd {
                     Ok(cmd) => handle_cmd(&cmd, client_map, client_addr, db_pool, game_type_map),
