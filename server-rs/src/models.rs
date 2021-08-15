@@ -35,6 +35,10 @@ pub struct DBGame {
     pub finished: bool,
     pub winner: Option<UserId>,
     pub is_tie: Option<bool>,
+    pub dur_per_move_ms: i64,
+    pub dur_sudden_death_ms: i64,
+    pub current_move_start_ms: Option<i64>,
+    pub turn_id: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -46,6 +50,10 @@ pub struct NewDBGame<'a> {
     pub finished: bool,
     pub winner: Option<UserId>,
     pub is_tie: Option<bool>,
+    pub dur_per_move_ms: i64,
+    pub dur_sudden_death_ms: i64,
+    pub current_move_start_ms: Option<i64>,
+    pub turn_id: Option<i64>,
 }
 
 #[derive(Queryable, AsChangeset)]
@@ -56,6 +64,7 @@ pub struct GamePlayer {
     pub game_id: GameId,
     pub score: Option<f64>,
     pub waiting_for_move: bool,
+    pub time_ms: i64,
 }
 
 #[derive(Insertable)]
@@ -65,4 +74,5 @@ pub struct NewGamePlayer {
     pub game_id: GameId,
     pub score: Option<f64>,
     pub waiting_for_move: bool,
+    pub time_ms: i64,
 }

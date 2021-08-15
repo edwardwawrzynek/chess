@@ -1,7 +1,7 @@
 use server_rs::*;
 
-use db::GameTypeMap;
 use dotenv::dotenv;
+use games::GameTypeMap;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;

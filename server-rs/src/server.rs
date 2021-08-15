@@ -1,13 +1,14 @@
 use crate::apikey::ApiKey;
 use crate::cmd::{ClientCommand, ProtocolVersion, ServerCommand};
-use crate::db::{init_db_pool, DBWrapper, Game, GameTypeMap, PgPool};
+use crate::db::{init_db_pool, DBWrapper, Game, GameTimeCfg, PgPool, PlayerTimeExpiry};
 use crate::error::Error;
-use crate::games::{Fmt, GameState, GameTurn};
+use crate::games::{Fmt, GameState, GameTurn, GameTypeMap};
 use crate::models::{GameId, GamePlayer, User, UserId};
 use futures_channel::mpsc;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use std::future::Future;
 use std::sync::MutexGuard;
+use std::time::Duration;
 use std::{
     collections::HashMap,
     collections::HashSet,
@@ -198,7 +199,7 @@ impl ClientMap {
 }
 
 /// Convert a game and its players to a game command
-fn serialize_game_state(game: &Game, players: &Vec<GamePlayer>) -> ServerCommand {
+fn serialize_game_state(game: &Game, players: &[GamePlayer]) -> ServerCommand {
     let (finished, winner, state) = match &game.instance {
         &None => (false, GameState::InProgress, None),
         Some(inst) => {
@@ -213,6 +214,15 @@ fn serialize_game_state(game: &Game, players: &Vec<GamePlayer>) -> ServerCommand
             }
         }
     };
+    // calculate time left in dur_per_move (ignoring sudden death time left)
+    let current_player_time_for_move = match game.current_move_start {
+        Some(_) => Some(
+            game.current_player_time(Duration::ZERO)
+                .per_move
+                .as_millis() as i64,
+        ),
+        None => None,
+    };
     ServerCommand::Game {
         id: game.id,
         game_type: game.game_type.clone(),
@@ -220,17 +230,25 @@ fn serialize_game_state(game: &Game, players: &Vec<GamePlayer>) -> ServerCommand
         started: game.instance.is_some(),
         finished,
         winner,
+        time_dur: game.time.to_ms(),
+        current_player_time_for_move,
         players: players
             .iter()
-            .map(|p| (p.user_id, p.score))
-            .collect::<Vec<(UserId, Option<f64>)>>(),
+            .map(|p| (p.user_id, p.score, p.time_ms))
+            .collect::<Vec<(UserId, Option<f64>, i64)>>(),
         state,
     }
+}
+
+fn find_user_in_players(players: &[GamePlayer], user_id: UserId) -> Option<&GamePlayer> {
+    let index = players.iter().position(|p| p.user_id == user_id);
+    index.map(|i| &players[i])
 }
 
 /// Convert a game to a go or board command for its active player
 fn serialize_game_for_player(
     game: &Game,
+    players: &[GamePlayer],
     protocol: ProtocolVersion,
 ) -> Option<(UserId, ServerCommand)> {
     match &game.instance {
@@ -239,14 +257,21 @@ fn serialize_game_for_player(
             GameTurn::Finished => None,
             GameTurn::Turn(user_id) => {
                 let state = format!("{}", Fmt(|f| inst.serialize_current(f)));
+
+                let player_sudden_death_start = find_user_in_players(players, user_id)
+                    .expect("active user not in players")
+                    .time_ms;
+                let time_remaining = game
+                    .current_player_time(Duration::from_millis(player_sudden_death_start as u64))
+                    .to_ms();
                 Some((
                     user_id,
                     match protocol {
                         ProtocolVersion::Current => ServerCommand::Go {
                             id: game.id,
                             game_type: game.game_type.clone(),
-                            time_ms: 0,
-                            time_for_turn_ms: 0,
+                            time_for_turn_ms: time_remaining.per_move_ms,
+                            time_ms: time_remaining.sudden_death_ms,
                             state: Some(state),
                         },
                         ProtocolVersion::Legacy => ServerCommand::Position { state: Some(state) },
@@ -277,8 +302,8 @@ fn serialize_waiting_games_for_user(
         }
     };
     for game_id in games {
-        let (game, _) = db.find_game(*game_id)?;
-        if let Some((uid, cmd)) = serialize_game_for_player(&game, protocol) {
+        let (game, players) = db.find_game(*game_id)?;
+        if let Some((uid, cmd)) = serialize_game_for_player(&game, &*players, protocol) {
             assert_eq!(uid, user_id);
             res.push(cmd);
         }
@@ -303,6 +328,66 @@ fn user_should_receive_game_update(
     }
 }
 
+/// Handle a change in game state
+fn handle_game_update(
+    game: &Game,
+    players: &[GamePlayer],
+    db: &DBWrapper,
+    clients: &Mutex<ClientMap>,
+) {
+    let cmd = serialize_game_state(game, players);
+    let clients = clients.lock().unwrap();
+    // send game to all observers
+    clients
+        .publish(Topic::Game(game.id), &Message::from(cmd.to_string()))
+        .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
+    // send game to player whose turn it is
+    for protocol in [ProtocolVersion::Current, ProtocolVersion::Legacy] {
+        if let Some((user_id, cmd)) = serialize_game_for_player(game, &*players, protocol) {
+            if user_should_receive_game_update(user_id, game.id, db, protocol).unwrap_or(false) {
+                clients
+                    .publish(
+                        Topic::UserPrivateProtocolVersion(user_id, protocol),
+                        &Message::from(cmd.to_string()),
+                    )
+                    .unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
+            }
+        }
+    }
+}
+
+/// Handle the potential expiry of a player's time
+fn handle_player_expiry(
+    expiry: PlayerTimeExpiry,
+    client_map: &Mutex<ClientMap>,
+    db_pool: &PgPool,
+    game_type_map: &GameTypeMap,
+    time_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
+) -> Result<(), Error> {
+    let update_callback = |game: &Game, players: &[GamePlayer], db: &DBWrapper| {
+        handle_game_update(game, players, db, client_map);
+    };
+    let db = DBWrapper::from_pg_pool(db_pool, game_type_map, update_callback, time_expiry_tx)?;
+    // load game and check turn_id
+    let (mut game, mut players) = db.find_game(expiry.game_id)?;
+    if game.turn_id == Some(expiry.turn_id) {
+        // TODO: handle winners for >2 player games
+        if players.len() == 2 {
+            // make player whose time did not expire winner
+            let mut winner = None;
+            for player in players.iter() {
+                if player.user_id != expiry.user_id {
+                    winner = Some(player.user_id);
+                    break;
+                }
+            }
+
+            db.end_game(&mut game, &mut *players, winner, "Time Expired".to_string())?;
+        }
+    }
+    Ok(())
+}
+
 /// Apply a command sent by a client and return a response (if necessary)
 fn handle_cmd(
     cmd: &ClientCommand,
@@ -310,6 +395,7 @@ fn handle_cmd(
     client_addr: &SocketAddr,
     db_pool: &PgPool,
     game_type_map: &GameTypeMap,
+    player_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) -> Result<Option<ServerCommand>, Error> {
     use ClientCommand::*;
 
@@ -317,30 +403,12 @@ fn handle_cmd(
     let clients = || client_map.lock().unwrap();
 
     // callback when a game's state changes
-    let game_update = |game: &Game, players: &Vec<GamePlayer>, db: &DBWrapper| {
-        // send game state to all observers
-        let cmd = serialize_game_state(game, players);
-        clients()
-            .publish(Topic::Game(game.id), &Message::from(cmd.to_string()))
-            .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
-        // send game to player whose turn it is
-        for protocol in [ProtocolVersion::Current, ProtocolVersion::Legacy] {
-            if let Some((user_id, cmd)) = serialize_game_for_player(game, protocol) {
-                if user_should_receive_game_update(user_id, game.id, db, protocol).unwrap_or(false)
-                {
-                    clients()
-                        .publish(
-                            Topic::UserPrivateProtocolVersion(user_id, protocol),
-                            &Message::from(cmd.to_string()),
-                        )
-                        .unwrap_or_else(|e| eprintln!("Can't send game to client, {}", e));
-                }
-            }
-        }
+    let game_update = |game: &Game, players: &[GamePlayer], db: &DBWrapper| {
+        handle_game_update(game, players, db, client_map);
     };
 
     // get a database connection
-    let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update);
+    let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update, player_expiry_tx);
     // load the current user
     fn user(
         db: &DBWrapper,
@@ -465,10 +533,18 @@ fn handle_cmd(
             }))
         }
         // --- Game Creation / Management --
-        NewGame(game_type) => {
+        NewGame {
+            game_type,
+            total_time,
+            time_per_move,
+        } => {
             let db = &db()?;
             let user = user(db, client_addr, clients())?;
-            let game = db.new_game(*game_type, user.id)?;
+            let game = db.new_game(
+                *game_type,
+                user.id,
+                GameTimeCfg::from_ms(*time_per_move, *total_time),
+            )?;
             Ok(Some(ServerCommand::NewGame(game.id)))
         }
         ObserveGame(game_id) => {
@@ -525,6 +601,7 @@ fn handle_message(
     client_addr: &SocketAddr,
     db_pool: &PgPool,
     game_type_map: &GameTypeMap,
+    player_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) {
     // reply to ping messages
     let reply = if msg.is_close() || msg.is_ping() {
@@ -534,14 +611,16 @@ fn handle_message(
         match msg.to_text() {
             Err(_) => Err(Error::MessageParseError),
             Ok(txt) => {
-                println!(
-                    "{}: {}",
-                    client_map.lock().unwrap().is_user(client_addr).unwrap_or(0),
-                    txt
-                );
                 let cmd = ClientCommand::deserialize(txt);
                 match cmd {
-                    Ok(cmd) => handle_cmd(&cmd, client_map, client_addr, db_pool, game_type_map),
+                    Ok(cmd) => handle_cmd(
+                        &cmd,
+                        client_map,
+                        client_addr,
+                        db_pool,
+                        game_type_map,
+                        player_expiry_tx,
+                    ),
                     Err(e) => Err(e),
                 }
             }
@@ -573,13 +652,11 @@ async fn handle_connection(
     addr: SocketAddr,
     db_pool: Arc<PgPool>,
     game_type_map: Arc<GameTypeMap>,
+    player_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) {
-    println!("Incoming TCP connection from: {}", addr);
-
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
         .await
         .expect("Error during the websocket handshake occurred");
-    println!("WebSocket connection established: {}", addr);
 
     // create channel for sending messages to websocket
     let (tx, rx) = mpsc::unbounded();
@@ -588,7 +665,14 @@ async fn handle_connection(
     let (outgoing, incoming) = ws_stream.split();
 
     let handle_incoming = incoming.try_for_each(|msg| {
-        handle_message(&msg, &*client_map, &addr, &db_pool, &game_type_map);
+        handle_message(
+            &msg,
+            &*client_map,
+            &addr,
+            &db_pool,
+            &game_type_map,
+            player_expiry_tx.clone(),
+        );
 
         future::ok(())
     });
@@ -598,8 +682,28 @@ async fn handle_connection(
     pin_mut!(handle_incoming, send_outgoing);
     future::select(handle_incoming, send_outgoing).await;
 
-    println!("Websocket connection closed: {}", &addr);
     client_map.lock().unwrap().remove_client(&addr);
+}
+
+fn run_expiry_rx(
+    clients: Arc<Mutex<ClientMap>>,
+    db_pool: Arc<PgPool>,
+    game_type_map: Arc<GameTypeMap>,
+    expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
+    mut expiry_rx: mpsc::UnboundedReceiver<PlayerTimeExpiry>,
+) {
+    tokio::spawn((|| async move {
+        while let Some(expiry) = expiry_rx.next().await {
+            handle_player_expiry(
+                expiry,
+                &*clients,
+                &*db_pool,
+                &*game_type_map,
+                expiry_tx.clone(),
+            )
+            .unwrap_or_else(|e| eprintln!("failed to handle expiry: {}", e));
+        }
+    })());
 }
 
 pub fn run_server<'a>(
@@ -616,6 +720,17 @@ pub fn run_server<'a>(
         let try_socket = TcpListener::bind(url).await;
         let listener = try_socket.expect("Failed to bind to port");
         println!("Listening on: {}", url);
+
+        // Setup channel to handle time events
+        let (expiry_tx, expiry_rx) = mpsc::unbounded::<PlayerTimeExpiry>();
+        run_expiry_rx(
+            clients.clone(),
+            db_pool.clone(),
+            game_type_map.clone(),
+            expiry_tx.clone(),
+            expiry_rx,
+        );
+
         while let Ok((stream, addr)) = listener.accept().await {
             tokio::spawn(handle_connection(
                 clients.clone(),
@@ -623,6 +738,7 @@ pub fn run_server<'a>(
                 addr,
                 db_pool.clone(),
                 game_type_map.clone(),
+                expiry_tx.clone(),
             ));
         }
     }

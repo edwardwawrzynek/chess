@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_migrations::embed_migrations;
-use server_rs::db::GameTypeMap;
+use server_rs::games::GameTypeMap;
 use server_rs::*;
 use std::net::TcpListener;
 use std::time::Duration;
@@ -126,6 +126,33 @@ fn parse_session_test(test: &str) -> Result<(Vec<SessionTestLine>, usize), Strin
     Ok((lines, max_id))
 }
 
+/// Check if the contents of a server response match an expected format
+/// This is a literal comparison, except that the expected format can include a *, which matches against any non whitespace, non comma, non bracket literal
+fn response_matches_expected(response: &str, expect: &str) -> bool {
+    let globable = |c: char| !c.is_whitespace() && c != ',' && c != '[' && c != ']';
+
+    let mut resp_iter = response.chars();
+    let mut next = resp_iter.next();
+    for e in expect.chars() {
+        if e != '*' {
+            match next {
+                Some(c) if c == e => {}
+                _ => return false,
+            }
+            next = resp_iter.next();
+        } else {
+            while let Some(peek) = resp_iter.next() {
+                if !globable(peek) {
+                    next = Some(peek);
+                    break;
+                }
+            }
+        }
+    }
+
+    true
+}
+
 /// Run a session test case.
 /// A session test case is a list of client commands to send, and expected responses from the server.
 /// Multiple client/server connections are supported in a test case. Each line of the test case starts with its sender (in brackets), then contains the command to send to/expect from the server. Clients are C1, C2, C3, etc, and server responses are S1, S2, S3, etc.
@@ -200,7 +227,7 @@ pub async fn session_test(test: &str) {
                     .expect("error reading message from server")
                     .into_text()
                     .expect("response isn't text");
-                if response != *cmd {
+                if !response_matches_expected(&*response, &**cmd) {
                     panic!("response from server doesn't match expected:\nresponse: [S{}] {}\nexpected: [S{}] {}", *id, response, *id, cmd);
                 }
             }

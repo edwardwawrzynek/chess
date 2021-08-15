@@ -1,4 +1,5 @@
 use crate::apikey::ApiKey;
+use crate::db::GameTimeMs;
 use crate::error::Error;
 use crate::games::GameState;
 use crate::models::{GameId, UserId};
@@ -7,6 +8,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 /// Protocol Versions
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Hash)]
@@ -61,15 +63,17 @@ pub enum ServerCommand {
         started: bool,
         finished: bool,
         winner: GameState,
-        players: Vec<(UserId, Option<f64>)>,
+        time_dur: GameTimeMs,
+        current_player_time_for_move: Option<i64>,
+        players: Vec<(UserId, Option<f64>, i64)>,
         state: Option<String>,
     },
     /// Send a game to the client to make a move on
     Go {
         id: GameId,
         game_type: String,
-        time_ms: u64,
-        time_for_turn_ms: u64,
+        time_ms: i64,
+        time_for_turn_ms: i64,
         state: Option<String>,
     },
     /// Send a game to the client to make a move on (legacy)
@@ -104,7 +108,11 @@ pub enum ClientCommand<'a> {
     /// Get info on the current user (ServerCommand::UserInfo response)
     SelfUserInfo,
     /// Create a new game of the given type
-    NewGame(&'a str),
+    NewGame {
+        game_type: &'a str,
+        total_time: i64,
+        time_per_move: i64,
+    },
     /// Observe a game with the given id
     ObserveGame(GameId),
     /// End observation of a game with the given id
@@ -149,6 +157,8 @@ impl fmt::Display for ServerCommand {
                 ref players,
                 owner,
                 ref state,
+                ref time_dur,
+                current_player_time_for_move,
             } => {
                 write!(
                     f,
@@ -160,9 +170,24 @@ impl fmt::Display for ServerCommand {
                     &GameState::Win(uid) => write!(f, "{}", uid)?,
                     &GameState::Tie => write!(f, "tie")?,
                 }
+                write!(
+                    f,
+                    ", {}, {}, ",
+                    time_dur.sudden_death_ms, time_dur.per_move_ms
+                )?;
+                match current_player_time_for_move {
+                    Some(t) => write!(f, "{}", t)?,
+                    None => write!(f, "-")?,
+                };
                 write!(f, ", [")?;
                 for (i, player) in players.iter().enumerate() {
-                    write!(f, "[{}, {}]", (*player).0, (*player).1.unwrap_or(0.0))?;
+                    write!(
+                        f,
+                        "[{}, {}, {}]",
+                        (*player).0,
+                        (*player).1.unwrap_or(0.0),
+                        (*player).2
+                    )?;
                     if i < players.len() - 1 {
                         write!(f, ", ")?;
                     }
@@ -227,7 +252,7 @@ lazy_static! {
         m.insert("gen_apikey", 0);
         m.insert("self_user_info", 0);
         m.insert("logout", 0);
-        m.insert("new_game", 1);
+        m.insert("new_game", 3);
         m.insert("observe_game", 1);
         m.insert("stop_observe_game", 1);
         m.insert("join_game", 1);
@@ -240,15 +265,15 @@ lazy_static! {
     };
 }
 
-fn parse_id(str: &str) -> Result<i32, Error> {
-    match str.parse::<i32>() {
+fn parse_val<F: FromStr>(str: &str) -> Result<F, Error> {
+    match str.parse::<F>() {
         Ok(id) => Ok(id),
         Err(_) => Err(Error::MalformedId),
     }
 }
 
 fn parse_protocol(str: &str) -> Result<ProtocolVersion, Error> {
-    let num = parse_id(str)?;
+    let num = parse_val::<i32>(str)?;
     ProtocolVersion::try_from(num)
 }
 
@@ -292,14 +317,18 @@ impl ClientCommand<'_> {
             "gen_apikey" => Ok(GenApikey),
             "self_user_info" => Ok(SelfUserInfo),
             "logout" => Ok(Logout),
-            "new_game" => Ok(NewGame(args[0])),
-            "observe_game" => Ok(ObserveGame(parse_id(args[0])?)),
-            "stop_observe_game" => Ok(StopObserveGame(parse_id(args[0])?)),
-            "join_game" => Ok(JoinGame(parse_id(args[0])?)),
-            "leave_game" => Ok(LeaveGame(parse_id(args[0])?)),
-            "start_game" => Ok(StartGame(parse_id(args[0])?)),
+            "new_game" => Ok(NewGame {
+                game_type: args[0],
+                total_time: parse_val(args[1])?,
+                time_per_move: parse_val(args[2])?,
+            }),
+            "observe_game" => Ok(ObserveGame(parse_val(args[0])?)),
+            "stop_observe_game" => Ok(StopObserveGame(parse_val(args[0])?)),
+            "join_game" => Ok(JoinGame(parse_val(args[0])?)),
+            "leave_game" => Ok(LeaveGame(parse_val(args[0])?)),
+            "start_game" => Ok(StartGame(parse_val(args[0])?)),
             "play" => Ok(Play {
-                id: parse_id(args[0])?,
+                id: parse_val(args[0])?,
                 play: args[1],
             }),
             "move" => Ok(Move(args[0])),
@@ -344,11 +373,13 @@ mod tests {
                 started: true,
                 finished: true,
                 winner: GameState::Tie,
-                players: vec![(3, Some(0.5)), (4, Some(4.5)), (5, None)],
+                time_dur: GameTimeMs { sudden_death_ms: 200, per_move_ms: 100 },
+                current_player_time_for_move: Some(150),
+                players: vec![(3, Some(0.5), 1), (4, Some(4.5), 2), (5, None, 3)],
                 state: Some("STATE".to_string()),
             }
             .to_string(),
-            "game 1, some_game, 2, true, true, tie, [[3, 0.5], [4, 4.5], [5, 0]], STATE"
+            "game 1, some_game, 2, true, true, tie, 200, 100, 150, [[3, 0.5, 1], [4, 4.5, 2], [5, 0, 3]], STATE"
         );
         assert_eq!(
             ServerCommand::Go {
@@ -445,8 +476,12 @@ mod tests {
         );
 
         assert_eq!(
-            ClientCommand::deserialize("new_game chess"),
-            Ok(ClientCommand::NewGame("chess"))
+            ClientCommand::deserialize("new_game chess, 1000, 500"),
+            Ok(ClientCommand::NewGame {
+                game_type: "chess",
+                total_time: 1000,
+                time_per_move: 500
+            })
         );
         assert_eq!(
             ClientCommand::deserialize("observe_game game"),

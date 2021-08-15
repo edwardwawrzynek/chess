@@ -1,7 +1,8 @@
 use crate::apikey::ApiKey;
 use crate::diesel::prelude::*;
 use crate::error::Error;
-use crate::games::{Fmt, GameInstance, GameState, GameTurn, GameType};
+use crate::games::ended_game::EndedGameInstance;
+use crate::games::{Fmt, GameInstance, GameState, GameTurn, GameTypeMap};
 use crate::models::{
     DBGame, GameId, GamePlayer, GamePlayerId, NewDBGame, NewGamePlayer, NewUser, User, UserId,
 };
@@ -9,9 +10,10 @@ use crate::schema::{game_players, games, users};
 use bcrypt;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PoolError, PooledConnection};
-use std::cmp::{max, min};
-use std::collections::HashMap;
-use std::time::{Duration, Instant, SystemTime};
+use futures_channel::mpsc;
+use rand::random;
+use std::cmp::max;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 impl User {
     pub fn check_password(&self, password: &str) -> bool {
@@ -25,70 +27,53 @@ impl User {
     }
 }
 
-// mapping from game type string to GameType
-pub type GameTypeMap = HashMap<&'static str, Box<dyn GameType>>;
-
-// game timing information
-pub struct GameTime {
-    // time per move for each player
-    dur_per_move: Duration,
-    // sudden death time left for each player
-    player_times: HashMap<UserId, Duration>,
-    // when the current player started their move
-    current_move_start: Option<(UserId, SystemTime)>,
+/// Time control configuration for a game
+#[derive(Debug, PartialEq, Eq)]
+pub struct GameTimeCfg {
+    // Time given for each move
+    pub per_move: Duration,
+    // Total time given for whole game (starts counting once dur_per_move is exhausted)
+    pub sudden_death: Duration,
 }
 
-impl GameTime {
-    /// update timing information for the current instant.
-    /// return true if the current player's time has expired.
-    fn update(&mut self, new_player: Option<UserId>) -> bool {
-        let expired = if let (user_id, start) = self.current_move_start {
-            let time = start.elapsed().or_else(Duration::from_secs(0));
-            // amount of lost sudden death time
-            let lost_sd_time = max(Duration::from_secs(0), time - self.dur_per_move);
-            // subtract lost time
-            let mut remaining_time = self.player_times.get_mut(&user_id).unwrap();
-            *remaining_time -= lost_sd_time;
+#[derive(Debug, PartialEq, Eq)]
+pub struct GameTimeMs {
+    pub per_move_ms: i64,
+    pub sudden_death_ms: i64,
+}
 
-            *remaining_time < Duration::from_secs(0)
-        } else {
-            false
-        };
-        // setup new current user
-        self.current_move_start = match new_player {
-            None => None,
-            Some(new_player) => Some((new_player, SystemTime::now())),
-        };
-
-        expired
+impl GameTimeCfg {
+    /// Convert times to whole milliseconds
+    pub fn to_ms(&self) -> GameTimeMs {
+        GameTimeMs {
+            per_move_ms: self.per_move.as_millis() as i64,
+            sudden_death_ms: self.sudden_death.as_millis() as i64,
+        }
     }
 
-    /// Create new game timing
-    fn new(users: Vec<UserId>, dur_per_move: Duration, dur_sudden_death: Duration) -> Self {
-        let mut times = HashMap::new();
-        for user in users {
-            times.insert(user, dur_sudden_death);
-        }
-        GameTime {
-            dur_per_move,
-            player_times,
-            current_move_start: None,
+    pub fn from_ms(per_move: i64, sudden_death: i64) -> Self {
+        GameTimeCfg {
+            per_move: Duration::from_millis(per_move as u64),
+            sudden_death: Duration::from_millis(sudden_death as u64),
         }
     }
 }
 
-// in memory representation of a game
+/// in memory representation of a game
 pub struct Game {
     pub id: GameId,
     pub owner_id: UserId,
     pub game_type: String,
     pub instance: Option<Box<dyn GameInstance>>,
+    pub time: GameTimeCfg,
+    pub current_move_start: Option<SystemTime>,
+    pub turn_id: Option<i64>,
 }
 
 pub type GameAndPlayers = (Game, Vec<GamePlayer>);
 
 impl Game {
-    fn from_dbgame(game: DBGame, type_map: &GameTypeMap, players: &[GamePlayerId]) -> Game {
+    pub fn from_dbgame(game: DBGame, type_map: &GameTypeMap, players: &[GamePlayerId]) -> Game {
         let instance = if let Some(ref state) = game.state {
             type_map[&*game.game_type].deserialize(state, players)
         } else {
@@ -100,10 +85,18 @@ impl Game {
             owner_id: game.owner_id,
             game_type: game.game_type,
             instance,
+            time: GameTimeCfg {
+                per_move: Duration::from_millis(game.dur_per_move_ms as u64),
+                sudden_death: Duration::from_millis(game.dur_sudden_death_ms as u64),
+            },
+            current_move_start: game
+                .current_move_start_ms
+                .map(|ms| UNIX_EPOCH + Duration::from_millis(ms as u64)),
+            turn_id: game.turn_id,
         }
     }
 
-    fn to_dbgame(&self) -> DBGame {
+    pub fn to_dbgame(&self) -> DBGame {
         let (finished, winner, is_tie) = match &self.instance {
             Some(instance) => match instance.turn() {
                 GameTurn::Finished => {
@@ -133,6 +126,44 @@ impl Game {
             finished,
             winner,
             is_tie,
+            dur_per_move_ms: self.time.to_ms().per_move_ms,
+            dur_sudden_death_ms: self.time.to_ms().sudden_death_ms,
+            current_move_start_ms: self.current_move_start.map(|t| {
+                t.duration_since(UNIX_EPOCH)
+                    .unwrap_or(Duration::ZERO)
+                    .as_millis() as i64
+            }),
+            turn_id: self.turn_id,
+        }
+    }
+
+    /// calculate the amount of elapsed time since the current move started
+    pub fn elapsed_since_current_move(&self) -> Option<Duration> {
+        self.current_move_start
+            .map(|t| t.elapsed().unwrap_or(Duration::ZERO))
+    }
+
+    /// calculate how much time has elapsed in sudden death since the current move started
+    pub fn elapsed_sudden_death(&self, elapsed: Duration) -> Duration {
+        elapsed
+            .checked_sub(self.time.per_move)
+            .unwrap_or(Duration::ZERO)
+    }
+
+    /// calculate how much time the current player has left in their turn + overall
+    pub fn current_player_time(&self, sudden_death_start: Duration) -> GameTimeCfg {
+        let elapsed = self.elapsed_since_current_move().unwrap_or(Duration::ZERO);
+        let elapsed_sudden_death = self.elapsed_sudden_death(elapsed);
+
+        GameTimeCfg {
+            per_move: self
+                .time
+                .per_move
+                .checked_sub(elapsed)
+                .unwrap_or(Duration::ZERO),
+            sudden_death: sudden_death_start
+                .checked_sub(elapsed_sudden_death)
+                .unwrap_or(Duration::ZERO),
         }
     }
 }
@@ -144,11 +175,22 @@ pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
     Pool::builder().build(manage)
 }
 
+/// A message that a player's time in a game may have expired
+#[derive()]
+pub struct PlayerTimeExpiry {
+    // The turn on which this expiry is valid. If the game is no longer on this turn, then the player's turn has not expired.
+    pub turn_id: i64,
+
+    pub game_id: GameId,
+    pub user_id: UserId,
+}
+
 /// A database connection wrapper, which associates the database with functions to manipulate it
 pub struct DBWrapper<'a, 'b> {
     db: PooledConnection<ConnectionManager<PgConnection>>,
     game_type_map: &'a GameTypeMap,
-    game_update_callback: Box<dyn Fn(&Game, &Vec<GamePlayer>, &DBWrapper<'a, 'b>) + 'b>,
+    game_update_callback: Box<dyn Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b>,
+    time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
 }
 
 impl DBWrapper<'_, '_> {
@@ -156,12 +198,14 @@ impl DBWrapper<'_, '_> {
     pub fn from_pg_pool<'a, 'b>(
         pool: &PgPool,
         type_map: &'a GameTypeMap,
-        game_update_callback: impl Fn(&Game, &Vec<GamePlayer>, &DBWrapper<'a, 'b>) + 'b,
+        game_update_callback: impl Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b,
+        time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
     ) -> Result<DBWrapper<'a, 'b>, Error> {
         Ok(DBWrapper {
             db: pool.get()?,
             game_type_map: type_map,
             game_update_callback: Box::new(game_update_callback),
+            time_expiry_channel,
         })
     }
 
@@ -262,7 +306,12 @@ impl DBWrapper<'_, '_> {
 
     // ---- Games ----
     /// Create a new game with the given type
-    pub fn new_game(&self, game_type: &str, owner: UserId) -> Result<DBGame, Error> {
+    pub fn new_game(
+        &self,
+        game_type: &str,
+        owner: UserId,
+        time_cfg: GameTimeCfg,
+    ) -> Result<DBGame, Error> {
         if !self.game_type_map.contains_key(game_type) {
             return Err(Error::NoSuchGameType(game_type.to_string()));
         }
@@ -273,6 +322,10 @@ impl DBWrapper<'_, '_> {
             winner: None,
             finished: false,
             is_tie: None,
+            dur_per_move_ms: time_cfg.to_ms().per_move_ms,
+            dur_sudden_death_ms: time_cfg.to_ms().sudden_death_ms,
+            current_move_start_ms: None,
+            turn_id: None,
         };
         Ok(diesel::insert_into(games::table)
             .values(&game)
@@ -356,6 +409,7 @@ impl DBWrapper<'_, '_> {
             user_id,
             score: None,
             waiting_for_move: false,
+            time_ms: game.time.to_ms().sudden_death_ms,
         };
         let new_player = diesel::insert_into(game_players::table)
             .values(&player)
@@ -424,57 +478,117 @@ impl DBWrapper<'_, '_> {
             .optional()?)
     }
 
-    /// Update the waiting_to_move status for players in a game
-    fn update_waiting_to_move_for_players(
+    /// Update the waiting_for_move field on each game player (doesn't save game players)
+    fn update_players_waiting_for_move(
         &self,
-        game_id: GameId,
         game_inst: &dyn GameInstance,
-    ) -> Result<(), Error> {
-        use game_players::dsl;
+        players: &mut [GamePlayer],
+    ) {
         match game_inst.turn() {
             GameTurn::Finished => {
                 // set all players as not waiting
-                diesel::update(dsl::game_players.filter(dsl::game_id.eq(game_id)))
-                    .set(dsl::waiting_for_move.eq(false))
-                    .execute(&self.db)?;
+                for player in players.iter_mut() {
+                    player.waiting_for_move = false;
+                }
             }
-            GameTurn::Turn(user_id) => {
-                // set all players except user as not waiting
-                diesel::update(
-                    dsl::game_players
-                        .filter(dsl::game_id.eq(game_id).and(dsl::user_id.ne(user_id))),
-                )
-                .set(dsl::waiting_for_move.eq(false))
-                .execute(&self.db)?;
-                // set user as waiting
-                diesel::update(
-                    dsl::game_players
-                        .filter(dsl::game_id.eq(game_id).and(dsl::user_id.eq(user_id))),
-                )
-                .set(dsl::waiting_for_move.eq(true))
-                .execute(&self.db)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Update a game and its player's scores in the database
-    pub fn save_game(&self, game: &Game) -> Result<(), Error> {
-        self.save_dbgame(&game.to_dbgame())?;
-        let mut players = self.find_game_players(game.id)?;
-        if let Some(instance) = &game.instance {
-            // update waiting to move
-            self.update_waiting_to_move_for_players(game.id, instance.as_ref())?;
-            // save scores
-            if let Some(scores) = instance.scores() {
-                for player in &mut players {
-                    player.score = Some(scores[&player.user_id]);
-                    self.save_game_player(player)?;
+            GameTurn::Turn(uid) => {
+                for player in players.iter_mut() {
+                    player.waiting_for_move = player.user_id == uid;
                 }
             }
         }
-        (self.game_update_callback)(game, &players, self);
+    }
+
+    /// Update a game and its player's scores in the database
+    pub fn save_game_and_players(
+        &self,
+        game: &Game,
+        players: &mut [GamePlayer],
+    ) -> Result<(), Error> {
+        self.save_dbgame(&game.to_dbgame())?;
+        if let Some(instance) = &game.instance {
+            // update waiting to move
+            self.update_players_waiting_for_move(instance.as_ref(), players);
+            // adjust scores
+            if let Some(scores) = instance.scores() {
+                for player in players.iter_mut() {
+                    player.score = Some(scores[&player.user_id]);
+                }
+            }
+            // save players
+            for player in players.iter() {
+                self.save_game_player(player)?;
+            }
+        }
+        (self.game_update_callback)(game, players, self);
+        Ok(())
+    }
+
+    /// Update a game and its player's scores in the database (load players from db first)
+    pub fn save_game(&self, game: &Game) -> Result<(), Error> {
+        let mut players = self.find_game_players(game.id)?;
+        self.save_game_and_players(game, &mut *players)
+    }
+
+    /// Start timing a move for a game
+    fn start_game_timer(&self, game: &mut Game, players: &[GamePlayer]) {
+        let game_id = game.id;
+        // give this turn a new random id
+        let turn_id: i64 = random();
+        game.turn_id = Some(turn_id);
+
+        if let Some(ref instance) = game.instance {
+            if let GameTurn::Turn(user_id) = instance.turn() {
+                // find remaining time for user
+                let mut remaining = Duration::ZERO;
+                for player in players.iter() {
+                    if player.user_id == user_id {
+                        remaining = Duration::from_millis(player.time_ms as u64);
+                        break;
+                    }
+                }
+
+                let till_expired = game.time.per_move + remaining;
+                let tx = self.time_expiry_channel.clone();
+                // start thread to wait for when this player's time will have fully expired
+                tokio::spawn((|| async move {
+                    tokio::time::sleep(till_expired).await;
+                    tx.unbounded_send(PlayerTimeExpiry {
+                        turn_id,
+                        game_id,
+                        user_id,
+                    })
+                    .unwrap_or_else(|e| eprintln!("Couldn't send game expiry information: {}", e));
+                })());
+                // mark when turn began
+                game.current_move_start = Some(SystemTime::now());
+            }
+        }
+    }
+
+    /// Turn a game into a EndedGameInstance
+    pub fn end_game(
+        &self,
+        game: &mut Game,
+        players: &mut [GamePlayer],
+        winner: Option<UserId>,
+        reason: String,
+    ) -> Result<(), Error> {
+        let inst = game.instance.as_ref().map(|i| &**i);
+        // update time elapsed during turn
+        if let Some(inst) = inst {
+            if let GameTurn::Turn(user_id) = inst.turn() {
+                self.adjust_players_time(&game, &mut *players, user_id);
+            }
+        }
+        // set game state to EndedGameInstance
+        game.instance = Some(Box::new(EndedGameInstance::from_current_state(
+            inst,
+            game.game_type.clone(),
+            winner,
+            reason,
+        )));
+        self.save_game_and_players(&game, &mut *players)?;
         Ok(())
     }
 
@@ -497,6 +611,8 @@ impl DBWrapper<'_, '_> {
         match new_instance {
             Some(new_instance) => {
                 game.instance = Some(new_instance);
+                // start timer for first move
+                self.start_game_timer(&mut game, &*players);
                 self.save_game(&game)?;
                 Ok(())
             }
@@ -504,15 +620,38 @@ impl DBWrapper<'_, '_> {
         }
     }
 
+    /// Subtract elapsed time from the current player in a game. (Doesn't save game players)
+    fn adjust_players_time(&self, game: &Game, players: &mut [GamePlayer], current_user: UserId) {
+        let elapsed = game.elapsed_since_current_move().unwrap_or(Duration::ZERO);
+        let elapsed_sudden_death = game.elapsed_sudden_death(elapsed);
+
+        // make sure time was actually lost
+        if elapsed_sudden_death <= Duration::ZERO {
+            return;
+        }
+        for player in players.iter_mut() {
+            if player.user_id == current_user {
+                player.time_ms -= elapsed_sudden_death.as_millis() as i64;
+                player.time_ms = max(player.time_ms, 0);
+                break;
+            }
+        }
+    }
+
     /// Make a move in a game as the given user
     pub fn make_move(&self, game_id: GameId, user_id: UserId, play: &str) -> Result<(), Error> {
-        let (mut game, _) = self.find_game(game_id)?;
+        let (mut game, mut players) = self.find_game(game_id)?;
         if let Some(ref mut inst) = game.instance {
             match inst.turn() {
                 GameTurn::Turn(uid) if uid == user_id => {
+                    // apply move
                     inst.make_move(user_id, play)
                         .map_err(|e| Error::InvalidMove(e))?;
-                    self.save_game(&game)?;
+                    // subtract elapsed time from player
+                    self.adjust_players_time(&game, &mut *players, user_id);
+                    // start timer for next move
+                    self.start_game_timer(&mut game, &*players);
+                    self.save_game_and_players(&game, &mut *players)?;
                     Ok(())
                 }
                 _ => Err(Error::NotTurn),

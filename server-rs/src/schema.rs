@@ -5,6 +5,7 @@ table! {
         game_id -> Int4,
         score -> Nullable<Float8>,
         waiting_for_move -> Bool,
+        time_ms -> Int8,
     }
 }
 
@@ -17,6 +18,10 @@ table! {
         finished -> Bool,
         winner -> Nullable<Int4>,
         is_tie -> Nullable<Bool>,
+        dur_per_move_ms -> Int8,
+        dur_sudden_death_ms -> Int8,
+        current_move_start_ms -> Nullable<Int8>,
+        turn_id -> Nullable<Int8>,
     }
 }
 

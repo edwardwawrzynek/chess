@@ -4,6 +4,7 @@ use std::fmt;
 use std::fmt::Debug;
 
 pub mod chess_game;
+pub mod ended_game;
 
 /// A type of game that can be played by the server.
 /// `GameType` represents the type of game, not a specific instance of that game.
@@ -49,6 +50,9 @@ pub trait GameInstance {
     /// Get the scores for the game. If the game doesn't have score results, return None. May return None while the game is in progress and Some when scores are available.
     fn scores(&self) -> Option<GameScore>;
 }
+
+/// mapping from game type string to GameType
+pub type GameTypeMap = HashMap<&'static str, Box<dyn GameType>>;
 
 // Utility to be able to use serialize methods
 pub struct Fmt<F>(pub F)
