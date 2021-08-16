@@ -4,6 +4,7 @@ use crate::db::{init_db_pool, DBWrapper, Game, GameTimeCfg, PgPool, PlayerTimeEx
 use crate::error::Error;
 use crate::games::{Fmt, GameState, GameTurn, GameTypeMap};
 use crate::models::{GameId, GamePlayer, User, UserId};
+use crate::tournament::TournamentTypeMap;
 use futures_channel::mpsc;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use std::future::Future;
@@ -362,12 +363,19 @@ fn handle_player_expiry(
     client_map: &Mutex<ClientMap>,
     db_pool: &PgPool,
     game_type_map: &GameTypeMap,
+    tournament_type_map: &TournamentTypeMap,
     time_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) -> Result<(), Error> {
     let update_callback = |game: &Game, players: &[GamePlayer], db: &DBWrapper| {
         handle_game_update(game, players, db, client_map);
     };
-    let db = DBWrapper::from_pg_pool(db_pool, game_type_map, update_callback, time_expiry_tx)?;
+    let db = DBWrapper::from_pg_pool(
+        db_pool,
+        game_type_map,
+        tournament_type_map,
+        update_callback,
+        time_expiry_tx,
+    )?;
     // load game and check turn_id
     let (mut game, mut players) = db.find_game(expiry.game_id)?;
     if game.turn_id == Some(expiry.turn_id) {
@@ -395,6 +403,7 @@ fn handle_cmd(
     client_addr: &SocketAddr,
     db_pool: &PgPool,
     game_type_map: &GameTypeMap,
+    tournament_type_map: &TournamentTypeMap,
     player_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) -> Result<Option<ServerCommand>, Error> {
     use ClientCommand::*;
@@ -408,7 +417,15 @@ fn handle_cmd(
     };
 
     // get a database connection
-    let db = || DBWrapper::from_pg_pool(db_pool, game_type_map, game_update, player_expiry_tx);
+    let db = || {
+        DBWrapper::from_pg_pool(
+            db_pool,
+            game_type_map,
+            tournament_type_map,
+            game_update,
+            player_expiry_tx,
+        )
+    };
     // load the current user
     fn user(
         db: &DBWrapper,
@@ -544,6 +561,7 @@ fn handle_cmd(
                 *game_type,
                 user.id,
                 GameTimeCfg::from_ms(*time_per_move, *total_time),
+                None,
             )?;
             Ok(Some(ServerCommand::NewGame(game.id)))
         }
@@ -601,6 +619,7 @@ fn handle_message(
     client_addr: &SocketAddr,
     db_pool: &PgPool,
     game_type_map: &GameTypeMap,
+    tournament_type_map: &TournamentTypeMap,
     player_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) {
     // reply to ping messages
@@ -619,6 +638,7 @@ fn handle_message(
                         client_addr,
                         db_pool,
                         game_type_map,
+                        tournament_type_map,
                         player_expiry_tx,
                     ),
                     Err(e) => Err(e),
@@ -652,6 +672,7 @@ async fn handle_connection(
     addr: SocketAddr,
     db_pool: Arc<PgPool>,
     game_type_map: Arc<GameTypeMap>,
+    tournament_type_map: Arc<TournamentTypeMap>,
     player_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) {
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
@@ -671,6 +692,7 @@ async fn handle_connection(
             &addr,
             &db_pool,
             &game_type_map,
+            &*tournament_type_map,
             player_expiry_tx.clone(),
         );
 
@@ -689,6 +711,7 @@ fn run_expiry_rx(
     clients: Arc<Mutex<ClientMap>>,
     db_pool: Arc<PgPool>,
     game_type_map: Arc<GameTypeMap>,
+    tournament_type_map: Arc<TournamentTypeMap>,
     expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
     mut expiry_rx: mpsc::UnboundedReceiver<PlayerTimeExpiry>,
 ) {
@@ -699,6 +722,7 @@ fn run_expiry_rx(
                 &*clients,
                 &*db_pool,
                 &*game_type_map,
+                &*tournament_type_map,
                 expiry_tx.clone(),
             )
             .unwrap_or_else(|e| eprintln!("failed to handle expiry: {}", e));
@@ -710,6 +734,7 @@ pub fn run_server<'a>(
     url: &'a str,
     db_url: &'a str,
     game_type_map: Arc<GameTypeMap>,
+    tournament_type_map: Arc<TournamentTypeMap>,
 ) -> impl Future<Output = ()> + 'a {
     async move {
         // Create application state
@@ -727,6 +752,7 @@ pub fn run_server<'a>(
             clients.clone(),
             db_pool.clone(),
             game_type_map.clone(),
+            tournament_type_map.clone(),
             expiry_tx.clone(),
             expiry_rx,
         );
@@ -738,6 +764,7 @@ pub fn run_server<'a>(
                 addr,
                 db_pool.clone(),
                 game_type_map.clone(),
+                tournament_type_map.clone(),
                 expiry_tx.clone(),
             ));
         }

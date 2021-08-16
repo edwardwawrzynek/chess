@@ -42,6 +42,8 @@ pub enum Error {
         proto: ProtocolVersion,
         expected: ProtocolVersion,
     },
+    NoSuchTournament,
+    NoSuchTournamentType,
 }
 
 impl PartialEq for Error {
@@ -163,6 +165,14 @@ impl PartialEq for Error {
                 } => proto == other_proto && expected == other_expected,
                 _ => false,
             },
+            NoSuchTournament => match other {
+                NoSuchTournament => true,
+                _ => false,
+            },
+            NoSuchTournamentType => match other {
+                NoSuchTournamentType => true,
+                _ => false,
+            },
         }
     }
 }
@@ -235,6 +245,8 @@ impl fmt::Display for Error {
                 "that command is only available in protocol version {} (you are in version {})",
                 expected, proto
             ),
+            NoSuchTournament => write!(f, "no such tournament"),
+            NoSuchTournamentType => write!(f, "no such tournament type"),
         }
     }
 }

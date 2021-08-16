@@ -40,7 +40,9 @@ pub trait GameInstance {
     /// Serialize this game's entire state. This is the serialization used for storing and loading the game from database, and sending the game to observing clients. This serialization should include move history, scoring, etc. You do not need to serialize information about players' ids.
     fn serialize(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
     /// Serialize the portion of this game's state needed for a client to decide what move to make. This is probably just the current state of the game, and doesn't need to include information not needed to make move decisions (such as history/scoring/etc).
-    fn serialize_current(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
+    fn serialize_current(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.serialize(f)
+    }
     /// Check whose' turn it is.
     fn turn(&self) -> GameTurn;
     /// Make a move, or return an error describing why that move is illegal.

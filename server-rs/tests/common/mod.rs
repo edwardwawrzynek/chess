@@ -6,6 +6,7 @@ use std::sync::Arc;
 use diesel::{Connection, PgConnection, RunQueryDsl};
 use diesel_migrations::embed_migrations;
 use server_rs::games::GameTypeMap;
+use server_rs::tournament::TournamentTypeMap;
 use server_rs::*;
 use std::net::TcpListener;
 use std::time::Duration;
@@ -169,6 +170,8 @@ pub async fn session_test(test: &str) {
     let mut game_type_map: GameTypeMap = HashMap::new();
     game_type_map.insert("chess", Box::new(games::chess_game::ChessGame()));
 
+    let mut tournament_type_map: TournamentTypeMap = HashMap::new();
+
     // find an open port
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap();
@@ -187,6 +190,7 @@ pub async fn session_test(test: &str) {
             &*format!("127.0.0.1:{}", port),
             &format!("{}/{}", base_url, db_name),
             Arc::new(game_type_map),
+            Arc::new(tournament_type_map),
         )
         .await;
     })());

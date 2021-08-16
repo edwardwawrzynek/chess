@@ -4,9 +4,11 @@ use crate::error::Error;
 use crate::games::ended_game::EndedGameInstance;
 use crate::games::{Fmt, GameInstance, GameState, GameTurn, GameTypeMap};
 use crate::models::{
-    DBGame, GameId, GamePlayer, GamePlayerId, NewDBGame, NewGamePlayer, NewUser, User, UserId,
+    DBGame, DBTournament, GameId, GamePlayer, GamePlayerId, NewDBGame, NewDBTournament,
+    NewGamePlayer, NewTournamentPlayer, NewUser, TournamentId, TournamentPlayer, User, UserId,
 };
-use crate::schema::{game_players, games, users};
+use crate::schema::{game_players, games, tournament_players, tournaments, users};
+use crate::tournament::{TournamentCfg, TournamentTypeInstance, TournamentTypeMap};
 use bcrypt;
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool, PoolError, PooledConnection};
@@ -28,7 +30,7 @@ impl User {
 }
 
 /// Time control configuration for a game
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct GameTimeCfg {
     // Time given for each move
     pub per_move: Duration,
@@ -63,6 +65,7 @@ impl GameTimeCfg {
 pub struct Game {
     pub id: GameId,
     pub owner_id: UserId,
+    pub tournament_id: Option<TournamentId>,
     pub game_type: String,
     pub instance: Option<Box<dyn GameInstance>>,
     pub time: GameTimeCfg,
@@ -71,6 +74,7 @@ pub struct Game {
 }
 
 pub type GameAndPlayers = (Game, Vec<GamePlayer>);
+pub type TournamentAndPlayers = (Tournament, Vec<TournamentPlayer>);
 
 impl Game {
     pub fn from_dbgame(game: DBGame, type_map: &GameTypeMap, players: &[GamePlayerId]) -> Game {
@@ -83,6 +87,7 @@ impl Game {
         Game {
             id: game.id,
             owner_id: game.owner_id,
+            tournament_id: game.tournament_id,
             game_type: game.game_type,
             instance,
             time: GameTimeCfg {
@@ -118,6 +123,7 @@ impl Game {
         DBGame {
             id: self.id,
             owner_id: self.owner_id,
+            tournament_id: self.tournament_id,
             game_type: self.game_type.clone(),
             state: self
                 .instance
@@ -168,6 +174,59 @@ impl Game {
     }
 }
 
+/// in memory representation of a tournament
+pub struct Tournament {
+    pub id: TournamentId,
+    pub owner_id: UserId,
+    pub cfg: TournamentCfg,
+    pub instance: Box<dyn TournamentTypeInstance>,
+    pub started: bool,
+    pub tournament_type: String,
+}
+
+impl Tournament {
+    pub fn from_db_tournament(
+        tourney: DBTournament,
+        type_map: &TournamentTypeMap,
+    ) -> Result<Tournament, Error> {
+        let cfg = TournamentCfg {
+            game_type: tourney.game_type,
+            time_cfg: GameTimeCfg::from_ms(tourney.dur_per_move_ms, tourney.dur_sudden_death_ms),
+        };
+        let instance = type_map[&*tourney.tournament_type].new(&*tourney.options, &cfg)?;
+        Ok(Tournament {
+            id: tourney.id,
+            owner_id: tourney.owner_id,
+            cfg,
+            instance,
+            started: tourney.started,
+            tournament_type: tourney.tournament_type,
+        })
+    }
+
+    pub fn to_db_tournament(&self, db: &DBWrapper, players: &[TournamentPlayer]) -> DBTournament {
+        let times = self.cfg.time_cfg.to_ms();
+        let options = format!("{}", Fmt(|f| self.instance.serialize(&self.cfg, f)));
+        let (finished, winner) = match self.instance.end_state(&self.cfg, players, db) {
+            GameState::InProgress => (false, None),
+            GameState::Win(uid) => (true, Some(uid)),
+            GameState::Tie => (true, None),
+        };
+        DBTournament {
+            id: self.id,
+            owner_id: self.owner_id,
+            tournament_type: self.tournament_type.clone(),
+            game_type: self.cfg.game_type.clone(),
+            dur_per_move_ms: times.per_move_ms,
+            dur_sudden_death_ms: times.sudden_death_ms,
+            started: self.started,
+            options,
+            finished,
+            winner,
+        }
+    }
+}
+
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 
 pub fn init_db_pool(db_url: &str) -> Result<PgPool, PoolError> {
@@ -189,6 +248,7 @@ pub struct PlayerTimeExpiry {
 pub struct DBWrapper<'a, 'b> {
     db: PooledConnection<ConnectionManager<PgConnection>>,
     game_type_map: &'a GameTypeMap,
+    tournament_type_map: &'a TournamentTypeMap,
     game_update_callback: Box<dyn Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b>,
     time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
 }
@@ -197,13 +257,15 @@ impl DBWrapper<'_, '_> {
     /// Wrap an existing pg connection
     pub fn from_pg_pool<'a, 'b>(
         pool: &PgPool,
-        type_map: &'a GameTypeMap,
+        game_type_map: &'a GameTypeMap,
+        tournament_type_map: &'a TournamentTypeMap,
         game_update_callback: impl Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b,
         time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
     ) -> Result<DBWrapper<'a, 'b>, Error> {
         Ok(DBWrapper {
             db: pool.get()?,
-            game_type_map: type_map,
+            game_type_map,
+            tournament_type_map,
             game_update_callback: Box::new(game_update_callback),
             time_expiry_channel,
         })
@@ -311,6 +373,7 @@ impl DBWrapper<'_, '_> {
         game_type: &str,
         owner: UserId,
         time_cfg: GameTimeCfg,
+        tournament_id: Option<UserId>,
     ) -> Result<DBGame, Error> {
         if !self.game_type_map.contains_key(game_type) {
             return Err(Error::NoSuchGameType(game_type.to_string()));
@@ -319,6 +382,7 @@ impl DBWrapper<'_, '_> {
             game_type,
             state: None,
             owner_id: owner,
+            tournament_id,
             winner: None,
             finished: false,
             is_tie: None,
@@ -589,6 +653,7 @@ impl DBWrapper<'_, '_> {
             reason,
         )));
         self.save_game_and_players(&game, &mut *players)?;
+        self.handle_game_end(&game, &**game.instance.as_ref().unwrap())?;
         Ok(())
     }
 
@@ -638,10 +703,41 @@ impl DBWrapper<'_, '_> {
         }
     }
 
+    fn handle_game_end(&self, game: &Game, game_inst: &dyn GameInstance) -> Result<(), Error> {
+        if let Some(id) = game.tournament_id {
+            let mut tournament = self.find_tournament(id)?;
+            let mut players = self.find_tournament_players(id)?;
+
+            match game_inst.end_state() {
+                Some(GameState::Tie) => {
+                    for player in &mut players {
+                        player.tie += 1
+                    }
+                }
+                Some(GameState::Win(winner)) => {
+                    for player in &mut players {
+                        if player.id == winner {
+                            player.win += 1
+                        } else {
+                            player.loss += 1
+                        }
+                    }
+                }
+                _ => {}
+            }
+            self.save_tournament_players(&*players)?;
+            tournament
+                .instance
+                .advance(&tournament.cfg, &*players, &self)?;
+        }
+
+        Ok(())
+    }
+
     /// Make a move in a game as the given user
     pub fn make_move(&self, game_id: GameId, user_id: UserId, play: &str) -> Result<(), Error> {
         let (mut game, mut players) = self.find_game(game_id)?;
-        if let Some(ref mut inst) = game.instance {
+        let move_res = if let Some(ref mut inst) = game.instance {
             match inst.turn() {
                 GameTurn::Turn(uid) if uid == user_id => {
                     // apply move
@@ -658,6 +754,183 @@ impl DBWrapper<'_, '_> {
             }
         } else {
             Err(Error::NotTurn)
+        };
+        // if the game just ended and is in a tournament, adjust scores + advance tournament
+        if let Some(ref inst) = game.instance {
+            if let GameTurn::Finished = inst.turn() {
+                self.handle_game_end(&game, &**inst)?;
+            }
         }
+        move_res
+    }
+
+    // ----- Tournaments -----
+    /// Load a DBTournament
+    fn find_db_tournament(&self, id: TournamentId) -> Result<DBTournament, Error> {
+        match tournaments::dsl::tournaments
+            .find(id)
+            .first::<DBTournament>(&self.db)
+            .optional()?
+        {
+            Some(t) => Ok(t),
+            None => Err(Error::NoSuchTournament),
+        }
+    }
+
+    /// Load a tournament from the database
+    pub fn find_tournament(&self, id: TournamentId) -> Result<Tournament, Error> {
+        Ok(Tournament::from_db_tournament(
+            self.find_db_tournament(id)?,
+            self.tournament_type_map,
+        )?)
+    }
+
+    /// Save a tournament
+    fn save_db_tournament(&self, tourney: &DBTournament) -> Result<(), Error> {
+        diesel::update(tournaments::dsl::tournaments.find(tourney.id))
+            .set(tourney)
+            .execute(&self.db)?;
+        Ok(())
+    }
+
+    pub fn save_tournament_player(&self, player: &TournamentPlayer) -> Result<(), Error> {
+        diesel::update(tournament_players::dsl::tournament_players.find(player.id))
+            .set(player)
+            .execute(&self.db)?;
+        Ok(())
+    }
+
+    pub fn save_tournament_players(&self, players: &[TournamentPlayer]) -> Result<(), Error> {
+        for player in players.iter() {
+            self.save_tournament_player(player)?;
+        }
+        Ok(())
+    }
+
+    pub fn save_tournament(
+        &self,
+        tourney: &Tournament,
+        players: &[TournamentPlayer],
+    ) -> Result<(), Error> {
+        self.save_db_tournament(&tourney.to_db_tournament(&self, &*players))?;
+        self.save_tournament_players(players)?;
+        Ok(())
+    }
+
+    /// Load all players in a tournament
+    pub fn find_tournament_players(
+        &self,
+        id: TournamentId,
+    ) -> Result<Vec<TournamentPlayer>, Error> {
+        use tournament_players::dsl;
+        Ok(dsl::tournament_players
+            .filter(dsl::tournament_id.eq(id))
+            .order(dsl::id.asc())
+            .load::<TournamentPlayer>(&self.db)?)
+    }
+
+    /// Load a user in a tournament
+    pub fn find_tournament_player(
+        &self,
+        tourney_id: TournamentId,
+        user_id: UserId,
+    ) -> Result<TournamentPlayer, Error> {
+        use tournament_players::dsl;
+        match dsl::tournament_players
+            .filter(
+                dsl::tournament_id
+                    .eq(tourney_id)
+                    .and(dsl::user_id.eq(user_id)),
+            )
+            .first::<TournamentPlayer>(&self.db)
+            .optional()?
+        {
+            Some(player) => Ok(player),
+            None => Err(Error::NoSuchUser),
+        }
+    }
+
+    /// Create a new tournament
+    pub fn new_tournament(
+        &self,
+        tournament_type: &str,
+        owner_id: UserId,
+        cfg: &TournamentCfg,
+        options: &str,
+    ) -> Result<DBTournament, Error> {
+        if !self.tournament_type_map.contains_key(tournament_type) {
+            return Err(Error::NoSuchTournamentType);
+        }
+        if !self.game_type_map.contains_key(&*cfg.game_type) {
+            return Err(Error::NoSuchGameType(cfg.game_type.clone()));
+        }
+        let times = cfg.time_cfg.to_ms();
+        let tourney = NewDBTournament {
+            tournament_type,
+            owner_id,
+            game_type: &*cfg.game_type,
+            dur_per_move_ms: times.per_move_ms,
+            dur_sudden_death_ms: times.sudden_death_ms,
+            started: false,
+            finished: false,
+            winner: None,
+            options,
+        };
+        Ok(diesel::insert_into(tournaments::table)
+            .values(&tourney)
+            .get_result::<DBTournament>(&self.db)?)
+    }
+
+    /// Join a tournament
+    pub fn join_tournament(&self, id: TournamentId, user_id: UserId) -> Result<(), Error> {
+        let existing = self.find_tournament_player(id, user_id);
+        match existing {
+            Err(Error::NoSuchUser) => {}
+            Ok(_) => return Err(Error::AlreadyInGame),
+            Err(e) => return Err(e),
+        };
+        let new_player = NewTournamentPlayer {
+            user_id,
+            tournament_id: id,
+            win: 0,
+            loss: 0,
+            tie: 0,
+        };
+        diesel::insert_into(tournament_players::table)
+            .values(&new_player)
+            .execute(&self.db)?;
+        Ok(())
+    }
+
+    /// Leave a tournament
+    pub fn leave_tournament(&self, id: TournamentId, user_id: UserId) -> Result<(), Error> {
+        let tourney = self.find_db_tournament(id)?;
+        if tourney.started {
+            return Err(Error::GameAlreadyStarted);
+        }
+
+        let existing = self.find_tournament_player(id, user_id)?;
+        diesel::delete(tournament_players::dsl::tournament_players.find(existing.id))
+            .execute(&self.db)?;
+
+        Ok(())
+    }
+
+    /// Start a tournament
+    pub fn start_tournament(&self, id: TournamentId, user_id: UserId) -> Result<(), Error> {
+        let mut tourney = self.find_tournament(id)?;
+        if tourney.owner_id != user_id {
+            return Err(Error::DontOwnGame);
+        }
+        if tourney.started {
+            return Err(Error::GameAlreadyStarted);
+        }
+        // mark started + save tournament
+        tourney.started = true;
+        let players = self.find_tournament_players(id)?;
+        self.save_tournament(&tourney, &*players)?;
+        // trigger game creation + starting
+        tourney.instance.advance(&tourney.cfg, &*players, &self)?;
+        Ok(())
     }
 }

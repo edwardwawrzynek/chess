@@ -2,6 +2,7 @@ use server_rs::*;
 
 use dotenv::dotenv;
 use games::GameTypeMap;
+use server_rs::tournament::TournamentTypeMap;
 use std::collections::HashMap;
 use std::env;
 use std::sync::Arc;
@@ -16,5 +17,13 @@ async fn main() {
     let mut game_type_map: GameTypeMap = HashMap::new();
     game_type_map.insert("chess", Box::new(games::chess_game::ChessGame()));
 
-    server::run_server(&addr, &db_url, Arc::new(game_type_map)).await;
+    let mut tournament_type_map: TournamentTypeMap = HashMap::new();
+
+    server::run_server(
+        &addr,
+        &db_url,
+        Arc::new(game_type_map),
+        Arc::new(tournament_type_map),
+    )
+    .await;
 }

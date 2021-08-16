@@ -11,3 +11,4 @@ pub mod games;
 pub mod models;
 pub mod schema;
 pub mod server;
+pub mod tournament;
