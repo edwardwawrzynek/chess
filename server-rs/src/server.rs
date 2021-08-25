@@ -1,9 +1,9 @@
 use crate::apikey::ApiKey;
 use crate::cmd::{ClientCommand, ProtocolVersion, ServerCommand};
-use crate::db::{init_db_pool, DBWrapper, Game, GameTimeCfg, PgPool, PlayerTimeExpiry};
+use crate::db::{init_db_pool, DBWrapper, Game, GameTimeCfg, PgPool, PlayerTimeExpiry, Tournament};
 use crate::error::Error;
 use crate::games::{Fmt, GameState, GameTurn, GameTypeMap};
-use crate::models::{GameId, GamePlayer, User, UserId};
+use crate::models::{GameId, GamePlayer, TournamentPlayer, User, UserId};
 use crate::tournament::TournamentTypeMap;
 use futures_channel::mpsc;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
@@ -357,6 +357,16 @@ fn handle_game_update(
     }
 }
 
+/// Handle a change in tournament state
+fn handle_tournament_update(
+    tournament: &Tournament,
+    players: &[TournamentPlayer],
+    db: &DBWrapper,
+    clients: &Mutex<ClientMap>,
+) {
+    todo!("implement")
+}
+
 /// Handle the potential expiry of a player's time
 fn handle_player_expiry(
     expiry: PlayerTimeExpiry,
@@ -366,14 +376,19 @@ fn handle_player_expiry(
     tournament_type_map: &TournamentTypeMap,
     time_expiry_tx: mpsc::UnboundedSender<PlayerTimeExpiry>,
 ) -> Result<(), Error> {
-    let update_callback = |game: &Game, players: &[GamePlayer], db: &DBWrapper| {
+    let game_update_callback = |game: &Game, players: &[GamePlayer], db: &DBWrapper| {
         handle_game_update(game, players, db, client_map);
     };
+    let tournament_update_callback =
+        |tourney: &Tournament, players: &[TournamentPlayer], db: &DBWrapper| {
+            handle_tournament_update(tourney, players, db, client_map);
+        };
     let db = DBWrapper::from_pg_pool(
         db_pool,
         game_type_map,
         tournament_type_map,
-        update_callback,
+        game_update_callback,
+        tournament_update_callback,
         time_expiry_tx,
     )?;
     // load game and check turn_id
@@ -415,6 +430,9 @@ fn handle_cmd(
     let game_update = |game: &Game, players: &[GamePlayer], db: &DBWrapper| {
         handle_game_update(game, players, db, client_map);
     };
+    let tournament_update = |tourney: &Tournament, players: &[TournamentPlayer], db: &DBWrapper| {
+        handle_tournament_update(tourney, players, db, client_map);
+    };
 
     // get a database connection
     let db = || {
@@ -423,6 +441,7 @@ fn handle_cmd(
             game_type_map,
             tournament_type_map,
             game_update,
+            tournament_update,
             player_expiry_tx,
         )
     };

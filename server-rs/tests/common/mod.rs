@@ -171,6 +171,7 @@ pub async fn session_test(test: &str) {
     game_type_map.insert("chess", Box::new(games::chess_game::ChessGame()));
 
     let mut tournament_type_map: TournamentTypeMap = HashMap::new();
+    tournament_type_map.insert("round_robin", Box::new(tournament::RoundRobin()));
 
     // find an open port
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();

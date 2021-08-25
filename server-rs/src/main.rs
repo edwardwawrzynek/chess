@@ -18,6 +18,7 @@ async fn main() {
     game_type_map.insert("chess", Box::new(games::chess_game::ChessGame()));
 
     let mut tournament_type_map: TournamentTypeMap = HashMap::new();
+    tournament_type_map.insert("round_robin", Box::new(tournament::RoundRobin()));
 
     server::run_server(
         &addr,

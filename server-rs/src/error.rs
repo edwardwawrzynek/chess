@@ -5,6 +5,7 @@ use r2d2;
 use crate::cmd::ProtocolVersion;
 use futures_channel::mpsc;
 use std::fmt;
+use std::num::ParseIntError;
 use tungstenite::protocol::Message;
 
 #[derive(Debug)]
@@ -34,7 +35,7 @@ pub enum Error {
     DontOwnGame,
     InvalidNumberOfPlayers,
     NotInGame,
-    MalformedId,
+    InvalidNumberId,
     NoSuchGameType(String),
     InvalidProtocolVersion,
     InvalidMove(String),
@@ -142,8 +143,8 @@ impl PartialEq for Error {
                 NotInGame => true,
                 _ => false,
             },
-            MalformedId => match other {
-                MalformedId => true,
+            InvalidNumberId => match other {
+                InvalidNumberId => true,
                 _ => false,
             },
             NoSuchGameType(game_type) => match other {
@@ -197,6 +198,12 @@ impl From<r2d2::Error> for Error {
     }
 }
 
+impl From<ParseIntError> for Error {
+    fn from(_e: ParseIntError) -> Error {
+        Error::InvalidNumberId
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Error::*;
@@ -235,7 +242,7 @@ impl fmt::Display for Error {
             DontOwnGame => write!(f, "you aren't the owner of that game"),
             InvalidNumberOfPlayers => write!(f, "invalid number of players joined to start game"),
             NotInGame => write!(f, "you aren't a player in that game"),
-            MalformedId => write!(f, "malformed id"),
+            InvalidNumberId => write!(f, "malformed id or number"),
             NoSuchGameType(game_type) => write!(f, "unsupported game type: {}", *game_type),
             InvalidProtocolVersion => write!(f, "invalid protocol version"),
             NotTurn => write!(f, "it is not your turn to move in that game"),

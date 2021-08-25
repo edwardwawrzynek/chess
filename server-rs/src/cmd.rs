@@ -268,7 +268,7 @@ lazy_static! {
 fn parse_val<F: FromStr>(str: &str) -> Result<F, Error> {
     match str.parse::<F>() {
         Ok(id) => Ok(id),
-        Err(_) => Err(Error::MalformedId),
+        Err(_) => Err(Error::InvalidNumberId),
     }
 }
 
@@ -485,7 +485,7 @@ mod tests {
         );
         assert_eq!(
             ClientCommand::deserialize("observe_game game"),
-            Err(Error::MalformedId)
+            Err(Error::InvalidNumberId)
         );
         assert_eq!(
             ClientCommand::deserialize("observe_game 1"),

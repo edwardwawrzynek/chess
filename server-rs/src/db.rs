@@ -204,15 +204,19 @@ impl Tournament {
         })
     }
 
-    pub fn to_db_tournament(&self, db: &DBWrapper, players: &[TournamentPlayer]) -> DBTournament {
+    pub fn to_db_tournament(
+        &self,
+        db: &DBWrapper,
+        players: &[TournamentPlayer],
+    ) -> Result<DBTournament, Error> {
         let times = self.cfg.time_cfg.to_ms();
         let options = format!("{}", Fmt(|f| self.instance.serialize(&self.cfg, f)));
-        let (finished, winner) = match self.instance.end_state(&self.cfg, players, db) {
+        let (finished, winner) = match self.instance.end_state(self.id, &self.cfg, players, db)? {
             GameState::InProgress => (false, None),
             GameState::Win(uid) => (true, Some(uid)),
             GameState::Tie => (true, None),
         };
-        DBTournament {
+        Ok(DBTournament {
             id: self.id,
             owner_id: self.owner_id,
             tournament_type: self.tournament_type.clone(),
@@ -223,7 +227,7 @@ impl Tournament {
             options,
             finished,
             winner,
-        }
+        })
     }
 }
 
@@ -250,6 +254,8 @@ pub struct DBWrapper<'a, 'b> {
     game_type_map: &'a GameTypeMap,
     tournament_type_map: &'a TournamentTypeMap,
     game_update_callback: Box<dyn Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b>,
+    tournament_update_callback:
+        Box<dyn Fn(&Tournament, &[TournamentPlayer], &DBWrapper<'a, 'b>) + 'b>,
     time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
 }
 
@@ -260,6 +266,7 @@ impl DBWrapper<'_, '_> {
         game_type_map: &'a GameTypeMap,
         tournament_type_map: &'a TournamentTypeMap,
         game_update_callback: impl Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b,
+        tournament_update_callback: impl Fn(&Tournament, &[TournamentPlayer], &DBWrapper<'a, 'b>) + 'b,
         time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
     ) -> Result<DBWrapper<'a, 'b>, Error> {
         Ok(DBWrapper {
@@ -267,6 +274,7 @@ impl DBWrapper<'_, '_> {
             game_type_map,
             tournament_type_map,
             game_update_callback: Box::new(game_update_callback),
+            tournament_update_callback: Box::new(tournament_update_callback),
             time_expiry_channel,
         })
     }
@@ -373,7 +381,7 @@ impl DBWrapper<'_, '_> {
         game_type: &str,
         owner: UserId,
         time_cfg: GameTimeCfg,
-        tournament_id: Option<UserId>,
+        tournament_id: Option<TournamentId>,
     ) -> Result<DBGame, Error> {
         if !self.game_type_map.contains_key(game_type) {
             return Err(Error::NoSuchGameType(game_type.to_string()));
@@ -410,7 +418,7 @@ impl DBWrapper<'_, '_> {
 
     /// Load a game and it's players from the database
     pub fn find_game(&self, id: GameId) -> Result<GameAndPlayers, Error> {
-        self.dbgame_to_game_and_players(self.find_dbgame(id)?, self.game_type_map)
+        self.dbgame_to_game_and_players(self.find_dbgame(id)?)
     }
 
     /// Load all players in a game
@@ -423,17 +431,13 @@ impl DBWrapper<'_, '_> {
     }
 
     /// Convert a DBGame -> Game + GamePlayers
-    fn dbgame_to_game_and_players(
-        &self,
-        game: DBGame,
-        type_map: &GameTypeMap,
-    ) -> Result<GameAndPlayers, Error> {
+    pub fn dbgame_to_game_and_players(&self, game: DBGame) -> Result<GameAndPlayers, Error> {
         let players = self.find_game_players(game.id)?;
         let player_ids = (&players)
             .iter()
             .map(|p| p.user_id)
             .collect::<Vec<UserId>>();
-        let game_mem = Game::from_dbgame(game, type_map, &*player_ids);
+        let game_mem = Game::from_dbgame(game, self.game_type_map, &*player_ids);
         Ok((game_mem, players))
     }
 
@@ -726,9 +730,13 @@ impl DBWrapper<'_, '_> {
                 _ => {}
             }
             self.save_tournament_players(&*players)?;
-            tournament
-                .instance
-                .advance(&tournament.cfg, &*players, &self)?;
+            tournament.instance.advance(
+                tournament.id,
+                tournament.owner_id,
+                &tournament.cfg,
+                &*players,
+                &self,
+            )?;
         }
 
         Ok(())
@@ -812,7 +820,7 @@ impl DBWrapper<'_, '_> {
         tourney: &Tournament,
         players: &[TournamentPlayer],
     ) -> Result<(), Error> {
-        self.save_db_tournament(&tourney.to_db_tournament(&self, &*players))?;
+        self.save_db_tournament(&tourney.to_db_tournament(&self, &*players)?)?;
         self.save_tournament_players(players)?;
         Ok(())
     }
@@ -899,6 +907,10 @@ impl DBWrapper<'_, '_> {
         diesel::insert_into(tournament_players::table)
             .values(&new_player)
             .execute(&self.db)?;
+
+        let tourney = self.find_tournament(id)?;
+        let players = self.find_tournament_players(id)?;
+        (self.tournament_update_callback)(&tourney, &*players, &self);
         Ok(())
     }
 
@@ -912,6 +924,10 @@ impl DBWrapper<'_, '_> {
         let existing = self.find_tournament_player(id, user_id)?;
         diesel::delete(tournament_players::dsl::tournament_players.find(existing.id))
             .execute(&self.db)?;
+
+        let players = self.find_tournament_players(id)?;
+        let t = Tournament::from_db_tournament(tourney, self.tournament_type_map)?;
+        (self.tournament_update_callback)(&t, &*players, &self);
 
         Ok(())
     }
@@ -929,8 +945,18 @@ impl DBWrapper<'_, '_> {
         tourney.started = true;
         let players = self.find_tournament_players(id)?;
         self.save_tournament(&tourney, &*players)?;
+        (self.tournament_update_callback)(&tourney, &*players, &self);
         // trigger game creation + starting
-        tourney.instance.advance(&tourney.cfg, &*players, &self)?;
+        tourney
+            .instance
+            .advance(tourney.id, tourney.owner_id, &tourney.cfg, &*players, &self)?;
         Ok(())
+    }
+
+    /// Find all games in a tournament
+    pub fn find_tournament_games(&self, id: TournamentId) -> Result<Vec<DBGame>, Error> {
+        Ok(games::dsl::games
+            .filter(games::dsl::tournament_id.eq(id))
+            .load::<DBGame>(&self.db)?)
     }
 }
