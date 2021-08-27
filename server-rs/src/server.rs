@@ -3,8 +3,8 @@ use crate::cmd::{ClientCommand, ProtocolVersion, ServerCommand};
 use crate::db::{init_db_pool, DBWrapper, Game, GameTimeCfg, PgPool, PlayerTimeExpiry, Tournament};
 use crate::error::Error;
 use crate::games::{Fmt, GameState, GameTurn, GameTypeMap};
-use crate::models::{GameId, GamePlayer, TournamentPlayer, User, UserId};
-use crate::tournament::TournamentTypeMap;
+use crate::models::{GameId, GamePlayer, TournamentId, TournamentPlayer, User, UserId};
+use crate::tournament::{TournamentCfg, TournamentTypeMap};
 use futures_channel::mpsc;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 use std::future::Future;
@@ -31,6 +31,8 @@ enum Topic {
     UserPrivateProtocolVersion(UserId, ProtocolVersion),
     /// Messages about a particular game
     Game(GameId),
+    /// Message about a particular tournament
+    Tournament(TournamentId),
 }
 
 impl Default for Topic {
@@ -241,6 +243,53 @@ fn serialize_game_state(game: &Game, players: &[GamePlayer]) -> ServerCommand {
     }
 }
 
+/// Convert a tournament into a tournament command
+fn serialize_tournament_state(
+    tourney: &Tournament,
+    players: Vec<TournamentPlayer>,
+    db: &DBWrapper,
+) -> Result<ServerCommand, Error> {
+    let state =
+        tourney
+            .instance
+            .end_state(tourney.started, tourney.id, &tourney.cfg, &*players, db)?;
+    let games = format!(
+        "{}",
+        Fmt(|f| tourney
+            .instance
+            .serialize_games(tourney.id, &tourney.cfg, f, db))
+    );
+
+    Ok(ServerCommand::Tournament {
+        id: tourney.id,
+        owner: tourney.owner_id,
+        tourney_type: tourney.tournament_type.clone(),
+        game_type: tourney.cfg.game_type.clone(),
+        started: tourney.started,
+        finished: match state {
+            GameState::InProgress => false,
+            _ => true,
+        },
+        winner: state,
+        players,
+        games,
+    })
+}
+
+/// Convert all games in a tournament to commands
+fn serialize_tournament_games(
+    id: TournamentId,
+    db: &DBWrapper,
+) -> Result<Vec<ServerCommand>, Error> {
+    let mut res = vec![];
+    let games = db.find_tournament_games(id)?;
+    for dbgame in games.into_iter() {
+        let (game, players) = db.dbgame_to_game_and_players(dbgame)?;
+        res.push(serialize_game_state(&game, &*players));
+    }
+    Ok(res)
+}
+
 fn find_user_in_players(players: &[GamePlayer], user_id: UserId) -> Option<&GamePlayer> {
     let index = players.iter().position(|p| p.user_id == user_id);
     index.map(|i| &players[i])
@@ -336,12 +385,19 @@ fn handle_game_update(
     db: &DBWrapper,
     clients: &Mutex<ClientMap>,
 ) {
-    let cmd = serialize_game_state(game, players);
+    let state_cmd = serialize_game_state(game, players);
+    let state_msg = Message::from(state_cmd.to_string());
     let clients = clients.lock().unwrap();
     // send game to all observers
     clients
-        .publish(Topic::Game(game.id), &Message::from(cmd.to_string()))
-        .unwrap_or_else(|e| eprintln!("Can't send game state to client, {}", e));
+        .publish(Topic::Game(game.id), &state_msg)
+        .unwrap_or_else(|e| eprintln!("Can't send game state to game observers, {}", e));
+    // send game to tournament observers
+    if let Some(tourney_id) = game.tournament_id {
+        clients
+            .publish(Topic::Tournament(tourney_id), &state_msg)
+            .unwrap_or_else(|e| eprintln!("Can't send game state to tournament observers, {}", e));
+    }
     // send game to player whose turn it is
     for protocol in [ProtocolVersion::Current, ProtocolVersion::Legacy] {
         if let Some((user_id, cmd)) = serialize_game_for_player(game, &*players, protocol) {
@@ -364,7 +420,17 @@ fn handle_tournament_update(
     db: &DBWrapper,
     clients: &Mutex<ClientMap>,
 ) {
-    todo!("implement")
+    // serialize tournament + send to observers
+    let state_cmd = serialize_tournament_state(tournament, players.to_vec(), db)
+        .unwrap_or_else(|e| ServerCommand::Error(e));
+
+    let clients = clients.lock().unwrap();
+    clients
+        .publish(
+            Topic::Tournament(tournament.id),
+            &Message::from(state_cmd.to_string()),
+        )
+        .unwrap_or_else(|e| eprintln!("Can't send tournament to client, {}", e));
 }
 
 /// Handle the potential expiry of a player's time
@@ -627,6 +693,64 @@ fn handle_cmd(
                     Ok(None)
                 }
             }
+        }
+        NewTournament {
+            tourney_type,
+            game_type,
+            total_time,
+            time_per_move,
+            options,
+        } => {
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            let tourney = db.new_tournament(
+                *tourney_type,
+                user.id,
+                &TournamentCfg {
+                    game_type: game_type.to_string(),
+                    time_cfg: GameTimeCfg::from_ms(*time_per_move, *total_time),
+                },
+                *options,
+            )?;
+            Ok(Some(ServerCommand::NewTournament(tourney.id)))
+        }
+        JoinTournament(id) => {
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            db.join_tournament(*id, user.id)?;
+            Ok(None)
+        }
+        LeaveTournament(id) => {
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            db.leave_tournament(*id, user.id)?;
+            Ok(None)
+        }
+        StartTournament(id) => {
+            let db = &db()?;
+            let user = user(db, client_addr, clients())?;
+            db.start_tournament(*id, user.id)?;
+            Ok(None)
+        }
+        ObserveTournament(id) => {
+            // load tournament
+            let db = &db()?;
+            let mut clients = clients();
+            let tourney = db.find_tournament(*id)?;
+            let players = db.find_tournament_players(*id)?;
+            // send games in tournament
+            let games = serialize_tournament_games(*id, db)?;
+            for cmd in games {
+                clients.send(client_addr, Message::from(cmd.to_string()))?;
+            }
+            // add to topic
+            clients.add_to_topic(Topic::Tournament(*id), *client_addr);
+            // send tournament
+            Ok(Some(serialize_tournament_state(&tourney, players, db)?))
+        }
+        StopObserveTournament(id) => {
+            clients().remove_from_topic(Topic::Tournament(*id), client_addr);
+            Ok(None)
         }
     }
 }

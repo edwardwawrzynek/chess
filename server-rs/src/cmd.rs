@@ -2,7 +2,7 @@ use crate::apikey::ApiKey;
 use crate::db::GameTimeMs;
 use crate::error::Error;
 use crate::games::GameState;
-use crate::models::{GameId, UserId};
+use crate::models::{GameId, TournamentId, TournamentPlayer, UserId};
 use lazy_static;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -68,6 +68,20 @@ pub enum ServerCommand {
         players: Vec<(UserId, Option<f64>, i64)>,
         state: Option<String>,
     },
+    /// Report a new tournament's id
+    NewTournament(TournamentId),
+    /// Report a tournament's state to clients
+    Tournament {
+        id: TournamentId,
+        tourney_type: String,
+        owner: UserId,
+        game_type: String,
+        started: bool,
+        finished: bool,
+        winner: GameState,
+        players: Vec<TournamentPlayer>,
+        games: String,
+    },
     /// Send a game to the client to make a move on
     Go {
         id: GameId,
@@ -92,11 +106,16 @@ pub enum ClientCommand<'a> {
         password: &'a str,
     },
     /// Create a new user without login credentials and login
-    NewTmpUser { name: &'a str },
+    NewTmpUser {
+        name: &'a str,
+    },
     /// Login with an apikey
     Apikey(ApiKey),
     /// Login with an email and password
-    Login { email: &'a str, password: &'a str },
+    Login {
+        email: &'a str,
+        password: &'a str,
+    },
     /// Lgout of the current session
     Logout,
     /// Set the current user's name
@@ -123,10 +142,41 @@ pub enum ClientCommand<'a> {
     LeaveGame(GameId),
     /// Start a game with the given id
     StartGame(GameId),
+    /// Create a new tournament
+    NewTournament {
+        tourney_type: &'a str,
+        game_type: &'a str,
+        total_time: i64,
+        time_per_move: i64,
+        options: &'a str,
+    },
+    /// Become a player in a tournament
+    JoinTournament(TournamentId),
+    /// Stop being a player in a tournament
+    LeaveTournament(TournamentId),
+    /// Start a tournament
+    StartTournament(TournamentId),
+    /// Get updates on a tournament
+    ObserveTournament(TournamentId),
+    // stop getting updates on a tournament
+    StopObserveTournament(TournamentId),
     /// Make a move in a game
-    Play { id: GameId, play: &'a str },
+    Play {
+        id: GameId,
+        play: &'a str,
+    },
     /// Make a move in a game (legacy)
     Move(&'a str),
+}
+
+impl ServerCommand {
+    fn write_game_state(f: &mut fmt::Formatter<'_>, winner: &GameState) -> fmt::Result {
+        match winner {
+            &GameState::InProgress => write!(f, "-"),
+            &GameState::Win(uid) => write!(f, "{}", uid),
+            &GameState::Tie => write!(f, "tie"),
+        }
+    }
 }
 
 impl fmt::Display for ServerCommand {
@@ -165,11 +215,7 @@ impl fmt::Display for ServerCommand {
                     "game {}, {}, {}, {}, {}, ",
                     id, *game_type, owner, started, finished
                 )?;
-                match winner {
-                    &GameState::InProgress => write!(f, "-")?,
-                    &GameState::Win(uid) => write!(f, "{}", uid)?,
-                    &GameState::Tie => write!(f, "tie")?,
-                }
+                ServerCommand::write_game_state(f, winner)?;
                 write!(
                     f,
                     ", {}, {}, ",
@@ -193,6 +239,37 @@ impl fmt::Display for ServerCommand {
                     }
                 }
                 write!(f, "], {}", *state.as_ref().unwrap_or(&dash_str))
+            }
+            &NewTournament(id) => write!(f, "new_tournament {}", id),
+            &Tournament {
+                id,
+                ref tourney_type,
+                owner,
+                ref game_type,
+                started,
+                finished,
+                ref winner,
+                ref players,
+                ref games,
+            } => {
+                write!(
+                    f,
+                    "tournament {}, {}, {}, {}, {}, {}, ",
+                    id, tourney_type, owner, game_type, started, finished
+                )?;
+                ServerCommand::write_game_state(f, winner)?;
+                write!(f, ", [")?;
+                for (i, player) in players.iter().enumerate() {
+                    write!(
+                        f,
+                        "[{}, {}, {}, {}]",
+                        player.user_id, player.win, player.loss, player.tie
+                    )?;
+                    if i < players.len() - 1 {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, "], {}", games)
             }
             &Go {
                 id,
@@ -258,6 +335,12 @@ lazy_static! {
         m.insert("join_game", 1);
         m.insert("leave_game", 1);
         m.insert("start_game", 1);
+        m.insert("new_tournament", 5);
+        m.insert("join_tournament", 1);
+        m.insert("leave_tournament", 1);
+        m.insert("start_tournament", 1);
+        m.insert("observe_tournament", 1);
+        m.insert("stop_observe_tournament", 1);
         m.insert("version", 1);
         m.insert("play", 2);
         m.insert("move", 1);
@@ -332,6 +415,18 @@ impl ClientCommand<'_> {
                 play: args[1],
             }),
             "move" => Ok(Move(args[0])),
+            "new_tournament" => Ok(NewTournament {
+                tourney_type: args[0],
+                game_type: args[1],
+                total_time: parse_val(args[2])?,
+                time_per_move: parse_val(args[3])?,
+                options: args[4],
+            }),
+            "join_tournament" => Ok(JoinTournament(parse_val(args[0])?)),
+            "leave_tournament" => Ok(LeaveTournament(parse_val(args[0])?)),
+            "start_tournament" => Ok(StartTournament(parse_val(args[0])?)),
+            "observe_tournament" => Ok(ObserveTournament(parse_val(args[0])?)),
+            "stop_observe_tournament" => Ok(StopObserveTournament(parse_val(args[0])?)),
             _ => Err(Error::InvalidCommand(cmd.to_string())),
         }
     }
@@ -398,6 +493,42 @@ mod tests {
             }
             .to_string(),
             "position STATE"
+        );
+        assert_eq!(
+            ServerCommand::NewTournament(1).to_string(),
+            "new_tournament 1"
+        );
+        assert_eq!(
+            ServerCommand::Tournament {
+                id: 1,
+                tourney_type: "type".to_string(),
+                owner: 2,
+                game_type: "game".to_string(),
+                started: true,
+                finished: true,
+                winner: GameState::Tie,
+                players: vec![
+                    TournamentPlayer {
+                        user_id: 3,
+                        id: 0,
+                        tournament_id: 1,
+                        win: 4,
+                        loss: 5,
+                        tie: 6
+                    },
+                    TournamentPlayer {
+                        user_id: 7,
+                        id: 0,
+                        tournament_id: 1,
+                        win: 8,
+                        loss: 9,
+                        tie: 10
+                    }
+                ],
+                games: "GAMES".to_string()
+            }
+            .to_string(),
+            "tournament 1, type, 2, game, true, true, tie, [[3, 4, 5, 6], [7, 8, 9, 10]], GAMES"
         );
     }
 
@@ -517,6 +648,37 @@ mod tests {
         assert_eq!(
             ClientCommand::deserialize("move e2e4"),
             Ok(ClientCommand::Move("e2e4"))
+        );
+
+        assert_eq!(
+            ClientCommand::deserialize("new_tournament type, game, 100, 200, 2"),
+            Ok(ClientCommand::NewTournament {
+                tourney_type: "type",
+                game_type: "game",
+                total_time: 100,
+                time_per_move: 200,
+                options: "2"
+            })
+        );
+        assert_eq!(
+            ClientCommand::deserialize("join_tournament 1"),
+            Ok(ClientCommand::JoinTournament(1))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("leave_tournament 1"),
+            Ok(ClientCommand::LeaveTournament(1))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("start_tournament 1"),
+            Ok(ClientCommand::StartTournament(1))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("observe_tournament 1"),
+            Ok(ClientCommand::ObserveTournament(1))
+        );
+        assert_eq!(
+            ClientCommand::deserialize("stop_observe_tournament 1"),
+            Ok(ClientCommand::StopObserveTournament(1))
         );
     }
 }

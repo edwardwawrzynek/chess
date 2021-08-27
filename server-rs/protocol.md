@@ -65,6 +65,18 @@ version 2
 |`leave_game <id>`|Client|Leave the game with the given id. The game must not be started yet.|
 |`start_game <id>`|Client|Start the game with the given id. The logged in user must own the game.|
 
+### Tournament commands
+|Command|Sender|Description|Protocol Version|
+-|-|-|-
+|`new_tournament <tournament_type>, <game_type>, <total_time>, <time_per_move>, <tournament_options...>`|Client|Create a new tournament. `tournament_options` are dependant on the type of tournament selected. All other options are the same as `new_game`|
+|`new_tournament <id>`|Server|Return the new tournament's id.|
+|`join_tournament <id>`|Client|Join a tournament with the given id.|
+|`leave_tournament <id>`|Client|Leave a tournament with the given id.|
+|`start_tournament <id>`|Client|Start a tournament with the given id (you must be owner of the tournament).|
+|`observe_tournament <id>`|Client|Get the state of the tournament with the given id and its constituent games, and receive updates when the tournament or constituent games change.|
+|`stop_observe_tournament <id>`|Client|Stop getting updates about a tournament and its constituent games.|
+|`tournament <id>,<tournament_type>,<owning_user_id>,<game_type>,<started>,<finished>,<winner_id or "tie">,[[<player_0_id>,<wins>,<loses>,<ties>],[<player_1_id>,<wins>,<loses>,<ties>],...],<games...>`|Server|Send a tournament's state to a client. The format of `<games>` depends on tournament type.|
+
 ### Gameplay Commands
 |Command|Sender|Description|Protocol Version|
 -|-|-|-

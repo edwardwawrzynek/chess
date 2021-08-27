@@ -305,3 +305,78 @@ async fn test_game_expiry() {
     "#,
     ).await;
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_tournament_create() {
+    session_test(
+        r#"
+// setup a tournament with three players
+[C1] version 2
+[S1] okay
+[C2] version 2
+[S2] okay
+[C3] version 2
+[S3] okay
+[C1] new_tmp_user Test1
+[S1] okay
+[C2] new_tmp_user Test2
+[S2] okay
+[C3] new_tmp_user Test3
+[S3] okay
+[C1] new_tournament round_robin, chess, 100000, 0, 2
+[S1] new_tournament 1
+[C2] observe_tournament 1
+[S2] tournament 1, round_robin, 1, chess, false, false, -, [], []
+[C1] join_tournament 1
+[S1] okay
+[S2] tournament 1, round_robin, 1, chess, false, false, -, [[1, 0, 0, 0]], []
+[C1] leave_tournament 1
+[S1] okay
+[S2] tournament 1, round_robin, 1, chess, false, false, -, [], []
+[C1] join_tournament 1
+[S1] okay
+[S2] tournament 1, round_robin, 1, chess, false, false, -, [[1, 0, 0, 0]], []
+[C2] join_tournament 1
+[S2] tournament 1, round_robin, 1, chess, false, false, -, [[1, 0, 0, 0], [2, 0, 0, 0]], []
+[S2] okay
+[C3] join_tournament 1
+[S3] okay
+[S2] tournament 1, round_robin, 1, chess, false, false, -, [[1, 0, 0, 0], [2, 0, 0, 0], [3, 0, 0, 0]], []
+[C3] start_tournament 1
+[S3] error you aren't the owner of that game
+[C1] start_tournament 1
+// server gives c1 active game
+[S1] go 1, chess, *, *, rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+[S1] okay
+// server gives c2 observation
+[S2] tournament 1, round_robin, 1, chess, true, false, -, [[1, 0, 0, 0], [2, 0, 0, 0], [3, 0, 0, 0]], []
+// games (3 pick 2):
+[S2] game 1, chess, 1, false, false, -, 100000, 0, -, [[1, 0, 100000], [2, 0, 100000]], -
+[S2] game 2, chess, 1, false, false, -, 100000, 0, -, [[1, 0, 100000], [3, 0, 100000]], -
+[S2] game 3, chess, 1, false, false, -, 100000, 0, -, [[2, 0, 100000], [1, 0, 100000]], -
+[S2] game 4, chess, 1, false, false, -, 100000, 0, -, [[2, 0, 100000], [3, 0, 100000]], -
+[S2] game 5, chess, 1, false, false, -, 100000, 0, -, [[3, 0, 100000], [1, 0, 100000]], -
+[S2] game 6, chess, 1, false, false, -, 100000, 0, -, [[3, 0, 100000], [2, 0, 100000]], -
+// game 1 starts:
+[S2] game 1, chess, 1, true, false, -, 100000, 0, 0, [[1, 0, 100000], [2, 0, 100000]], rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1,[]
+
+[C1] version 2
+[S1] okay
+[C2] version 2
+[S2] okay
+[C2] version 2
+[S2] okay
+    "#,
+    ).await;
+}
+
+/*
+version 2
+new_tmp_user T1
+new_tournament round_robin, chess, 100000, 0, 2
+join_tournament 6
+
+version 2
+new_tmp_user T2
+join_tournament 6
+ */

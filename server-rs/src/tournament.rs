@@ -34,6 +34,26 @@ pub trait TournamentTypeInstance {
     /// Serialize to a format suitable for deserialization with TournamentType::new
     fn serialize(&self, cfg: &TournamentCfg, f: &mut fmt::Formatter<'_>) -> fmt::Result;
 
+    /// Serialize games list
+    fn serialize_games(
+        &self,
+        id: TournamentId,
+        _cfg: &TournamentCfg,
+        f: &mut fmt::Formatter<'_>,
+        db: &DBWrapper,
+    ) -> fmt::Result {
+        // default: array of game ids
+        write!(f, "[")?;
+        let games = db.find_tournament_games(id)?;
+        for (index, game) in games.iter().enumerate() {
+            write!(f, "{}", game.id)?;
+            if index < games.len() - 1 {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, "]")
+    }
+
     /// Advance the tournament -- create or start games + otherwise move the tournament forwards.
     /// Called when the tournament is first created, and when a game finishes
     fn advance(
@@ -48,6 +68,7 @@ pub trait TournamentTypeInstance {
     /// Return the state of the tournament -- if there is a winner or not
     fn end_state(
         &self,
+        started: bool,
         id: TournamentId,
         cfg: &TournamentCfg,
         players: &[TournamentPlayer],
@@ -77,13 +98,13 @@ impl TournamentType for RoundRobin {
 }
 
 impl RoundRobinInstance {
-    fn create_games(
+    fn create_games<'a, 'b, 'c>(
         &mut self,
-        owner: UserId,
         id: TournamentId,
+        owner: UserId,
         cfg: &TournamentCfg,
         players: &[TournamentPlayer],
-        db: &DBWrapper,
+        db: &DBWrapper<'a, 'b, 'c>,
     ) -> Result<(), Error> {
         // create all permutations of players
         for players in players
@@ -92,10 +113,17 @@ impl RoundRobinInstance {
             .unique()
         {
             // make game
-            let game = db.new_game(&*cfg.game_type, owner, cfg.time_cfg, Some(id))?;
+            let game =
+                db.without_callbacks()?
+                    .new_game(&*cfg.game_type, owner, cfg.time_cfg, Some(id))?;
             // attach players to game
-            for player in players {
-                db.join_game(game.id, player.user_id)?;
+            for (index, player) in players.iter().enumerate() {
+                // wait until last player has joined to publish game info
+                if index < players.len() - 1 {
+                    db.without_callbacks()?.join_game(game.id, player.user_id)?;
+                } else {
+                    db.join_game(game.id, player.user_id)?;
+                };
             }
         }
 
@@ -116,12 +144,15 @@ impl TournamentTypeInstance for RoundRobinInstance {
         players: &[TournamentPlayer],
         db: &DBWrapper,
     ) -> Result<(), Error> {
+        println!("DEBUG start advance");
         // if no players, do nothing (tournament ended)
         if players.len() == 0 {
             return Ok(());
         }
+        println!("DEBUG start load games");
         // otherwise, load existing games
         let games = db.find_tournament_games(id)?;
+        println!("DEBUG end load games");
         // if no games exist, tournament was just started, so make games
         if games.len() == 0 {
             // create games
@@ -168,6 +199,10 @@ impl TournamentTypeInstance for RoundRobinInstance {
 
             // no players are involved in too many games, so we can start this game
             db.start_game(game.id, owner)?;
+            // mark players as being in a game
+            for player in players {
+                *games_per_player.get_mut(&player.user_id).unwrap() += 1;
+            }
         }
 
         Ok(())
@@ -175,17 +210,26 @@ impl TournamentTypeInstance for RoundRobinInstance {
 
     fn end_state(
         &self,
+        started: bool,
         id: TournamentId,
         _cfg: &TournamentCfg,
         players: &[TournamentPlayer],
         db: &DBWrapper,
     ) -> Result<GameState, Error> {
+        if !started {
+            return Ok(GameState::InProgress);
+        }
+
         // no players forces a tie
         if players.len() == 0 {
             Ok(GameState::Tie)
         } else {
             // check for non finished games
             let games = db.find_tournament_games(id)?;
+            // if no games, tournament isn't finished
+            if games.len() == 0 {
+                return Ok(GameState::InProgress);
+            }
             for game in &games {
                 if !game.finished {
                     return Ok(GameState::InProgress);

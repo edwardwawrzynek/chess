@@ -211,11 +211,15 @@ impl Tournament {
     ) -> Result<DBTournament, Error> {
         let times = self.cfg.time_cfg.to_ms();
         let options = format!("{}", Fmt(|f| self.instance.serialize(&self.cfg, f)));
-        let (finished, winner) = match self.instance.end_state(self.id, &self.cfg, players, db)? {
-            GameState::InProgress => (false, None),
-            GameState::Win(uid) => (true, Some(uid)),
-            GameState::Tie => (true, None),
-        };
+        let (finished, winner) =
+            match self
+                .instance
+                .end_state(self.started, self.id, &self.cfg, players, db)?
+            {
+                GameState::InProgress => (false, None),
+                GameState::Win(uid) => (true, Some(uid)),
+                GameState::Tie => (true, None),
+            };
         Ok(DBTournament {
             id: self.id,
             owner_id: self.owner_id,
@@ -249,33 +253,50 @@ pub struct PlayerTimeExpiry {
 }
 
 /// A database connection wrapper, which associates the database with functions to manipulate it
-pub struct DBWrapper<'a, 'b> {
+pub struct DBWrapper<'a, 'b, 'c> {
+    pool: &'c PgPool,
     db: PooledConnection<ConnectionManager<PgConnection>>,
     game_type_map: &'a GameTypeMap,
     tournament_type_map: &'a TournamentTypeMap,
-    game_update_callback: Box<dyn Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b>,
+    game_update_callback: Box<dyn Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b, 'c>) + 'b>,
     tournament_update_callback:
-        Box<dyn Fn(&Tournament, &[TournamentPlayer], &DBWrapper<'a, 'b>) + 'b>,
+        Box<dyn Fn(&Tournament, &[TournamentPlayer], &DBWrapper<'a, 'b, 'c>) + 'b>,
     time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
 }
 
-impl DBWrapper<'_, '_> {
+impl DBWrapper<'_, '_, '_> {
     /// Wrap an existing pg connection
-    pub fn from_pg_pool<'a, 'b>(
-        pool: &PgPool,
+    pub fn from_pg_pool<'a, 'b, 'c>(
+        pool: &'c PgPool,
         game_type_map: &'a GameTypeMap,
         tournament_type_map: &'a TournamentTypeMap,
-        game_update_callback: impl Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b>) + 'b,
-        tournament_update_callback: impl Fn(&Tournament, &[TournamentPlayer], &DBWrapper<'a, 'b>) + 'b,
+        game_update_callback: impl Fn(&Game, &[GamePlayer], &DBWrapper<'a, 'b, 'c>) + 'b,
+        tournament_update_callback: impl Fn(&Tournament, &[TournamentPlayer], &DBWrapper<'a, 'b, 'c>)
+            + 'b,
         time_expiry_channel: mpsc::UnboundedSender<PlayerTimeExpiry>,
-    ) -> Result<DBWrapper<'a, 'b>, Error> {
+    ) -> Result<DBWrapper<'a, 'b, 'c>, Error> {
         Ok(DBWrapper {
+            pool,
             db: pool.get()?,
             game_type_map,
             tournament_type_map,
             game_update_callback: Box::new(game_update_callback),
             tournament_update_callback: Box::new(tournament_update_callback),
             time_expiry_channel,
+        })
+    }
+
+    /// Return a copy of this wrapper with blank callbacks
+    pub fn without_callbacks(&self) -> Result<DBWrapper, Error> {
+        Ok(DBWrapper {
+            pool: self.pool,
+            db: self.pool.get()?,
+            game_type_map: self.game_type_map,
+            tournament_type_map: self.tournament_type_map,
+
+            game_update_callback: Box::new(|_, _, _| {}),
+            tournament_update_callback: Box::new(|_, _, _| {}),
+            time_expiry_channel: self.time_expiry_channel.clone(),
         })
     }
 
@@ -934,6 +955,7 @@ impl DBWrapper<'_, '_> {
 
     /// Start a tournament
     pub fn start_tournament(&self, id: TournamentId, user_id: UserId) -> Result<(), Error> {
+        println!("DEBUG start");
         let mut tourney = self.find_tournament(id)?;
         if tourney.owner_id != user_id {
             return Err(Error::DontOwnGame);
@@ -941,15 +963,21 @@ impl DBWrapper<'_, '_> {
         if tourney.started {
             return Err(Error::GameAlreadyStarted);
         }
+        println!("DEBUG good to start");
         // mark started + save tournament
         tourney.started = true;
         let players = self.find_tournament_players(id)?;
+        println!("DEBUG start save");
         self.save_tournament(&tourney, &*players)?;
+        println!("DEBUG end save");
+        println!("DEBUG start callback");
         (self.tournament_update_callback)(&tourney, &*players, &self);
+        println!("DEBUG end callback");
         // trigger game creation + starting
         tourney
             .instance
             .advance(tourney.id, tourney.owner_id, &tourney.cfg, &*players, &self)?;
+        println!("DEBUG end");
         Ok(())
     }
 

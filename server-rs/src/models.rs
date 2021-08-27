@@ -110,7 +110,7 @@ pub struct NewDBTournament<'a> {
     pub options: &'a str,
 }
 
-#[derive(Queryable, AsChangeset, PartialEq, Eq, Hash)]
+#[derive(Queryable, AsChangeset, PartialEq, Eq, Hash, Debug, Copy, Clone)]
 #[table_name = "tournament_players"]
 pub struct TournamentPlayer {
     pub id: TournamentPlayerId,

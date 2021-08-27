@@ -204,6 +204,12 @@ impl From<ParseIntError> for Error {
     }
 }
 
+impl From<Error> for fmt::Error {
+    fn from(_: Error) -> Self {
+        fmt::Error
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Error::*;
