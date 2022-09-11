@@ -8,8 +8,8 @@ import GameUI from './GameUI';
 import Select from 'react-select';
 import { selectStyles } from './selectStyles';
 
-//const API_URL = process.env.NODE_ENV === "development" ? 'ws://localhost:9001' : 'wss://codekata-chess.herokuapp.com';
-const API_URL = 'wss://codekata-chess.herokuapp.com';
+const API_URL = process.env.NODE_ENV === "development" ? 'ws://localhost:9001' : 'wss://codekata-chess.herokuapp.com';
+//const API_URL = 'ws://127.0.0.1:9001';
 const TOURNAMENT_GAME_ORDERING = false;
 const ALLOW_NEW_GAME = true;
 const ALLOW_LOGIN = true;

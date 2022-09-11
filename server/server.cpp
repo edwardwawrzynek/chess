@@ -383,7 +383,7 @@ int main(int argc, char *argv[]) {
                    if (cmd.size() < 2) {
                      ws->send("error expected 1 argument to command apikey",
                               opCode);
-                   } else if (state.players.contains(cmd[1])) {
+                   } else if (state.players.find(cmd[1]) != state.players.end()) {
                      Player *player = state.players[cmd[1]].get();
                      ((PerSocketData *)ws->getUserData())->player = player;
                      ws->subscribe("player" + std::to_string(player->id));

@@ -10,11 +10,4 @@ install(TARGETS chess-util
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         COMPONENT chess-util)
 
-check_ipo_supported(RESULT supported OUTPUT error)
-if (supported)
-    message(STATUS "IPO / LTO supported")
-    set_property(TARGET chess-util PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-else ()
-    message(STATUS "IPO / LTO not supported: <${error}>")
-endif ()
 
